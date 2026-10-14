@@ -119,12 +119,14 @@ export function ChamoLandingPage() {
 
     try {
       const client = getSupabaseClient();
-      if (client) {
-        const { error } = await client.from("orders").insert(payload);
-        if (error) {
-          throw error;
-        }
+      if (!client) {
+        throw new Error(
+          "Las solicitudes todavía no están habilitadas. Intenta más tarde o contáctanos por WhatsApp.",
+        );
       }
+
+      const { error } = await client.from("orders").insert(payload);
+      if (error) throw error;
 
       setSuccessMessage("¡Listo, chamo! Tu solicitud fue recibida.");
       setFormState({
@@ -555,6 +557,18 @@ export function ChamoLandingPage() {
           </div>
         </section>
       </main>
+
+      <footer className="border-t border-slate-200 bg-white px-4 py-6">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 text-sm text-slate-500 sm:flex-row">
+          <p>ChamoEntregas · Coloncito, Táchira</p>
+          <a
+            href="/repartidor"
+            className="font-semibold text-[#0B347A] transition hover:text-[#FF5A0A]"
+          >
+            ¿Eres repartidor? Inicia sesión
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

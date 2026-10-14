@@ -9,6 +9,7 @@ ChamoEntregas es una app local de entregas para Coloncito, Táchira, diseñada p
 - Diseño responsive para móvil y escritorio
 - PWA instalable desde el navegador del teléfono (requiere HTTPS)
 - Panel administrativo protegido con estados de pedidos y cobertura
+- Interfaz móvil protegida para repartidores en `/repartidor`
 
 ## Requisitos
 
@@ -64,10 +65,15 @@ npm run dev -- --hostname 0.0.0.0
 3. En Windows, ejecuta `ipconfig` y busca la dirección IPv4 del adaptador Wi-Fi.
 4. En el navegador del teléfono abre `http://DIRECCION-IP:3000` (por ejemplo, `http://192.168.1.66:3000`).
 5. El panel se encuentra en `http://DIRECCION-IP:3000/admin`.
+6. La interfaz para repartidores se encuentra en `http://DIRECCION-IP:3000/repartidor`.
 
 Si Windows muestra una solicitud del Firewall para Node.js, permite el acceso en redes privadas. Si no abre, comprueba que ambos dispositivos sigan en la misma Wi-Fi y que la dirección IPv4 no haya cambiado.
 
 La dirección local sirve para previsualizar el sitio; los navegadores no permiten instalar una PWA desde una dirección HTTP de red local. Para instalar ChamoEntregas, publica el sitio con HTTPS (por ejemplo, en Vercel), abre su dirección pública en el teléfono y selecciona **Instalar app**. En iPhone/iPad, abre el sitio en Safari y usa **Compartir > Añadir a pantalla de inicio**. La PWA necesita conexión a internet para cargar y enviar solicitudes; no ofrece uso sin conexión.
+
+### Probar la interfaz de repartidor
+
+Sin las variables de Supabase, abre `/repartidor` e inicia sesión con `repartidor@chamoentregas.com` / `chamo123`. Es un modo de demostración: permite recorrer pedidos de prueba, pero los cambios no se guardan. La demo del panel administrativo es `admin@chamoentregas.com` / `chamo123`.
 
 ## Supabase
 
@@ -95,6 +101,25 @@ Los estados de pedido usados son:
 3. Asegúrate de ejecutar el script completo.
 4. Copia la URL del proyecto y la clave anónima en `.env.local`.
 
+El esquema crea políticas RLS diferenciadas: los visitantes pueden insertar solicitudes nuevas; administradores pueden operar pedidos y cobertura; repartidores autenticados solo ven pedidos nuevos de su ciudad y sus propias entregas. Aceptar un pedido y avanzar su estado se realiza mediante funciones SQL protegidas.
+
+### Crear cuentas para el equipo
+
+1. Crea en **Authentication > Users** una cuenta para cada administrador y repartidor; no habilites el registro público.
+2. Asigna el `app_metadata.role` correspondiente (`admin` o `courier`) desde un entorno seguro que use la Admin API de Supabase. `app_metadata` es de confianza; no guardes estos roles en `user_metadata` ni los cambies desde el navegador.
+3. Para cada repartidor, vincula el ID de su usuario al registro de `couriers`:
+
+```sql
+update public.couriers
+set auth_user_id = 'UUID-DEL-USUARIO-AUTH'
+where name = 'José' and city = 'Coloncito';
+```
+
+4. Las cuentas de administrador necesitan `app_metadata.role = "admin"`; las de repartidor `app_metadata.role = "courier"` y un registro activo vinculado.
+5. Guarda `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Vercel. Nunca expongas la clave `service_role` en variables `NEXT_PUBLIC_*` ni en el cliente.
+
+La app cliente no muestra un mensaje de éxito si Supabase no está configurado: informará que todavía no se pueden recibir solicitudes.
+
 ## Demo local
 
 Si no configuras Supabase, el panel administrativo entra en modo demo con:
@@ -110,9 +135,11 @@ Esto sirve para revisar la experiencia de administración y probar los flujos si
 app/
   page.tsx
   admin/page.tsx
+  repartidor/page.tsx
 components/
   chamo-landing.tsx
   chamo-admin.tsx
+  courier-dashboard.tsx
   pwa-install-button.tsx
 app/
   manifest.ts

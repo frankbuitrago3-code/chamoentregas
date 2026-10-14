@@ -53,33 +53,36 @@ export function ChamoAdminDashboard() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        const rows = Array.isArray(data) ? data : [];
-        const mapped = rows.map((item: Record<string, unknown>) => {
-          const typeValue = typeof item.type === "string" ? item.type : "mandado";
-          const statusValue = typeof item.status === "string" ? item.status : "nuevos";
-          const priorityValue = typeof item.priority === "string" ? item.priority : "normal";
+      if (error) {
+        console.error("No se pudieron cargar los pedidos:", error);
+        return;
+      }
 
-          return {
-            id: String(item.id ?? item.order_id ?? "GEN"),
-            client: String(item.customer_name ?? "Cliente"),
-            phone: String(item.customer_phone ?? "--"),
-            city: String(item.city ?? "Coloncito"),
-            rider: String(item.rider_name ?? "Sin asignar"),
-            type: typeValue as Order["type"],
-            status: statusValue as Order["status"],
-            pickup: String(item.pickup_location ?? item.restaurant_name ?? "Punto de recogida"),
-            destination: String(item.destination ?? item.delivery_address ?? "Destino"),
-            details: String(item.item_details ?? item.notes ?? "Pedido"),
-            priority: priorityValue as Order["priority"],
-            createdAt: String(item.created_at ?? new Date().toISOString()),
-          };
-        });
+      if (!data) return;
+      const mapped = data.map((item: Record<string, unknown>) => {
+        const typeValue = typeof item.type === "string" ? item.type : "mandado";
+        const statusValue = typeof item.status === "string" ? item.status : "nuevos";
+        const priorityValue = typeof item.priority === "string" ? item.priority : "normal";
 
-        if (mapped.length > 0) {
-          setOrders(mapped);
-          setSelectedOrderId((prev) => prev || mapped[0].id);
-        }
+        return {
+          id: String(item.id ?? item.order_id ?? "GEN"),
+          client: String(item.customer_name ?? "Cliente"),
+          phone: String(item.customer_phone ?? "--"),
+          city: String(item.city ?? "Coloncito"),
+          rider: String(item.rider_name ?? "Sin asignar"),
+          type: typeValue as Order["type"],
+          status: statusValue as Order["status"],
+          pickup: String(item.pickup_location ?? item.restaurant_name ?? "Punto de recogida"),
+          destination: String(item.destination ?? item.delivery_address ?? "Destino"),
+          details: String(item.item_details ?? item.notes ?? "Pedido"),
+          priority: priorityValue as Order["priority"],
+          createdAt: String(item.created_at ?? new Date().toISOString()),
+        };
+      });
+
+      setOrders(mapped);
+      if (mapped.length > 0) {
+        setSelectedOrderId((prev) => prev || mapped[0].id);
       }
     };
 
@@ -149,6 +152,13 @@ export function ChamoAdminDashboard() {
         return;
       }
 
+      const { data: sessionData } = await client.auth.getSession();
+      if (sessionData.session?.user.app_metadata.role !== "admin") {
+        await client.auth.signOut();
+        setLoginError("Esta cuenta no tiene permisos de administrador.");
+        return;
+      }
+
       setIsLoggedIn(true);
       setLoginError("");
       return;
@@ -170,7 +180,15 @@ export function ChamoAdminDashboard() {
     const client = getSupabaseClient();
 
     if (client) {
-      await client.from("orders").update({ status: newStatus }).eq("id", orderId);
+      const { error } = await client
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("No se pudo actualizar el estado:", error);
+        return;
+      }
     }
 
     setOrders((current) =>
@@ -186,7 +204,15 @@ export function ChamoAdminDashboard() {
     const client = getSupabaseClient();
 
     if (client) {
-      await client.from("orders").update({ rider_name: riderName }).eq("id", orderId);
+      const { error } = await client
+        .from("orders")
+        .update({ rider_name: riderName, status: "asignados" })
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("No se pudo asignar el repartidor:", error);
+        return;
+      }
     }
 
     setOrders((current) =>
