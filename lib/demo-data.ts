@@ -9,8 +9,10 @@ export type OrderStatus =
 
 export type Order = {
   id: string;
+  customerId?: string | null;
   client: string;
   phone: string;
+  email?: string;
   city: string;
   rider: string;
   type: RequestType;

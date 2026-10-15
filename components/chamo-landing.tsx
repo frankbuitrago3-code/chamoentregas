@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import {
   ArrowRight,
   Bike,
@@ -69,6 +71,9 @@ export function ChamoLandingPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [isOrderBlocked, setIsOrderBlocked] = useState(false);
   const [formState, setFormState] = useState({
     name: "",
     phone: "",
@@ -87,6 +92,56 @@ export function ChamoLandingPage() {
     [requestType],
   );
 
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    let isMounted = true;
+    const loadCustomer = async (user: User | null) => {
+      if (!isMounted) return;
+      setCurrentUser(user);
+      setCustomerEmail(user?.email ?? "");
+      if (!user) {
+        setIsOrderBlocked(false);
+        return;
+      }
+
+      const { data, error } = await client
+        .from("customer_profiles")
+        .select("full_name,phone,orders_blocked_until")
+        .eq("id", user.id)
+        .single();
+      if (!isMounted) return;
+      if (error) {
+        setErrorMessage(`No se pudo cargar tu perfil: ${error.message}`);
+        return;
+      }
+      setFormState((current) => ({
+        ...current,
+        name: data.full_name,
+        phone: data.phone ?? "",
+      }));
+      setIsOrderBlocked(
+        Boolean(data.orders_blocked_until && new Date(data.orders_blocked_until) > new Date()),
+      );
+    };
+
+    client.auth.getSession().then(({ data, error }) => {
+      if (error && isMounted) setErrorMessage(`No se pudo verificar tu cuenta: ${error.message}`);
+      void loadCustomer(data.session?.user ?? null);
+    });
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => {
+        void loadCustomer(session?.user ?? null);
+      }, 0);
+    });
+
+    return () => {
+      isMounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
   function changeField(field: keyof typeof formState, value: string) {
     setFormState((current) => ({ ...current, [field]: value }));
   }
@@ -97,10 +152,22 @@ export function ChamoLandingPage() {
     setSuccessMessage("");
     setErrorMessage("");
 
+    if (!currentUser) {
+      setErrorMessage("Crea una cuenta o inicia sesión antes de enviar tu solicitud.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (isOrderBlocked) {
+      setErrorMessage("Tu cuenta tiene temporalmente pausadas las nuevas solicitudes. Contacta a soporte.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
-      id: crypto.randomUUID(),
+      customer_id: currentUser.id,
+      customer_email: customerEmail,
       customer_name: formState.name,
-      customer_phone: formState.phone,
+      customer_phone: formState.phone.trim() || null,
       city: formState.city,
       type: requestType,
       status: "nuevos",
@@ -114,7 +181,6 @@ export function ChamoLandingPage() {
             : formState.item,
       notes: formState.notes,
       photo_url: formState.photoName || null,
-      created_at: new Date().toISOString(),
     };
 
     try {
@@ -169,12 +235,20 @@ export function ChamoLandingPage() {
             <a href="#servicios" className="transition hover:text-[#0B347A]">Servicios</a>
           </div>
 
-          <a
-            href="#solicitud-rapida"
-            className="rounded-full bg-[#0B347A] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:translate-y-[-1px] hover:bg-[#0a2e6d]"
-          >
-            Pedir ahora
-          </a>
+            <div className="flex items-center gap-3">
+              <Link
+                href={currentUser ? "/perfil" : "/cuenta"}
+                className="hidden text-sm font-bold text-[#0B347A] sm:inline"
+              >
+                {currentUser ? "Mi cuenta" : "Ingresar"}
+              </Link>
+              <a
+                href="#solicitud-rapida"
+                className="rounded-full bg-[#0B347A] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:translate-y-[-1px] hover:bg-[#0a2e6d]"
+              >
+                Pedir ahora
+              </a>
+            </div>
         </nav>
       </header>
 
@@ -365,8 +439,15 @@ export function ChamoLandingPage() {
               <p className="text-sm font-bold uppercase tracking-[0.22em] text-blue-100">Solicitud rápida</p>
               <h2 className="mt-3 text-3xl font-black">Pide tu entrega en segundos</h2>
               <p className="mt-3 text-blue-100">
-                Elige el servicio, completa la información y nuestro equipo lo revisará de inmediato.
+                {currentUser
+                  ? `Pedido asociado a ${customerEmail}. Tu teléfono es opcional en el perfil.`
+                  : "Para enviar una solicitud, crea tu cuenta con correo y contraseña. No necesitas teléfono."}
               </p>
+              {!currentUser ? (
+                <Link href="/cuenta" className="mt-5 inline-flex w-fit items-center rounded-full bg-[#FF5A0A] px-5 py-3 font-bold text-white">
+                  Crear cuenta o ingresar
+                </Link>
+              ) : null}
               <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white/10 p-3">
                 <Bike className="h-6 w-6 text-[#FF5A0A]" />
                 <span className="font-semibold">Atención local en Coloncito</span>
@@ -396,24 +477,24 @@ export function ChamoLandingPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Nombre</span>
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">Nombre del perfil</span>
                   <input
                     value={formState.name}
-                    onChange={(event) => changeField("name", event.target.value)}
+                    readOnly
                     required
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    placeholder="Tu nombre"
+                    placeholder="Completa tu perfil"
                   />
+                  <Link href="/perfil" className="mt-1 inline-block text-xs font-semibold text-[#0B347A]">Editar datos del perfil</Link>
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Teléfono</span>
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">Teléfono (opcional)</span>
                   <input
                     value={formState.phone}
                     onChange={(event) => changeField("phone", event.target.value)}
-                    required
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    placeholder="0414-1234567"
+                    placeholder="Puedes dejarlo vacío"
                   />
                 </label>
               </div>
@@ -547,7 +628,7 @@ export function ChamoLandingPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !currentUser || isOrderBlocked}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#FF5A0A] px-5 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-200 transition hover:translate-y-[-1px] hover:bg-[#e75408] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? "Enviando..." : `Solicitar ${requestTitle}`}

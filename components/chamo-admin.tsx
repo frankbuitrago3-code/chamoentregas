@@ -17,6 +17,15 @@ import {
 import { demoCoverage, demoCustomers, demoOrders, demoRiders, orderStatuses, statusMeta, type Order, type OrderStatus } from "@/lib/demo-data";
 import { getSupabaseClient } from "@/lib/supabase";
 
+type CustomerProfileRecord = {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  reputation_score: number;
+  orders_blocked_until: string | null;
+};
+
 const demoCredentials = {
   email: "admin@chamoentregas.com",
   password: "chamo123",
@@ -33,6 +42,14 @@ export function ChamoAdminDashboard() {
   const [orders, setOrders] = useState<Order[]>(demoOrders);
   const [activeFilter, setActiveFilter] = useState<OrderStatus | "todos">("todos");
   const [selectedOrderId, setSelectedOrderId] = useState(demoOrders[0]?.id ?? "");
+  const [customerProfiles, setCustomerProfiles] = useState<CustomerProfileRecord[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [evidenceSummary, setEvidenceSummary] = useState("");
+  const [violationNotes, setViolationNotes] = useState("");
+  const [blockDuration, setBlockDuration] = useState("3");
+  const [customerActionMessage, setCustomerActionMessage] = useState("");
+  const [customerActionError, setCustomerActionError] = useState("");
+  const [isSavingCustomerAction, setIsSavingCustomerAction] = useState(false);
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "todos") return orders;
@@ -67,8 +84,10 @@ export function ChamoAdminDashboard() {
 
         return {
           id: String(item.id ?? item.order_id ?? "GEN"),
+          customerId: typeof item.customer_id === "string" ? item.customer_id : null,
           client: String(item.customer_name ?? "Cliente"),
           phone: String(item.customer_phone ?? "--"),
+          email: typeof item.customer_email === "string" ? item.customer_email : "",
           city: String(item.city ?? "Coloncito"),
           rider: String(item.rider_name ?? "Sin asignar"),
           type: typeValue as Order["type"],
@@ -87,7 +106,29 @@ export function ChamoAdminDashboard() {
       }
     };
 
+    const loadCustomers = async () => {
+      const { data, error } = await client
+        .from("customer_profiles")
+        .select("id,email,full_name,phone,reputation_score,orders_blocked_until")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("No se pudieron cargar los perfiles de clientes:", error);
+        setCustomerActionError(`No se pudieron cargar los perfiles: ${error.message}`);
+        return;
+      }
+
+      const profiles = data ?? [];
+      setCustomerProfiles(profiles);
+      if (profiles.length > 0) {
+        setSelectedCustomerId((current) =>
+          profiles.some((profile) => profile.id === current) ? current : profiles[0].id,
+        );
+      }
+    };
+
     loadOrders();
+    loadCustomers();
 
     const subscription = client
       .channel("orders-realtime")
@@ -225,6 +266,79 @@ export function ChamoAdminDashboard() {
     );
   }
 
+  async function confirmCustomerNonpayment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCustomerActionError("");
+    setCustomerActionMessage("");
+    if (!supabaseClient || !selectedCustomerId) return;
+
+    const customerOrders = orders.filter(
+      (order) => order.customerId === selectedCustomerId && order.status === "entregados",
+    );
+    const orderId = new FormData(event.currentTarget).get("orderId")?.toString() ?? "";
+    if (!customerOrders.some((order) => order.id === orderId)) {
+      setCustomerActionError("Selecciona un pedido entregado que pertenezca a este cliente.");
+      return;
+    }
+
+    setIsSavingCustomerAction(true);
+    const { error } = await supabaseClient.rpc("admin_confirm_customer_nonpayment", {
+      p_customer_id: selectedCustomerId,
+      p_order_id: orderId,
+      p_evidence_summary: evidenceSummary.trim(),
+      p_notes: violationNotes.trim() || null,
+    });
+
+    if (error) {
+      setCustomerActionError(`No se pudo confirmar la incidencia: ${error.message}`);
+    } else {
+      setEvidenceSummary("");
+      setViolationNotes("");
+      setCustomerActionMessage("Impago confirmado con evidencia y reputación actualizada.");
+      const { data, error: refreshError } = await supabaseClient
+        .from("customer_profiles")
+        .select("id,email,full_name,phone,reputation_score,orders_blocked_until")
+        .order("created_at", { ascending: false });
+      if (refreshError) {
+        setCustomerActionError(`La incidencia se guardó, pero no se pudo actualizar la lista: ${refreshError.message}`);
+      } else {
+        setCustomerProfiles(data ?? []);
+      }
+    }
+    setIsSavingCustomerAction(false);
+  }
+
+  async function setCustomerOrderRestriction() {
+    setCustomerActionError("");
+    setCustomerActionMessage("");
+    if (!supabaseClient || !selectedCustomerId) return;
+    const blockedUntil =
+      blockDuration === "0"
+        ? null
+        : new Date(Date.now() + Number(blockDuration) * 24 * 60 * 60 * 1000).toISOString();
+
+    setIsSavingCustomerAction(true);
+    const { error } = await supabaseClient.rpc("admin_set_customer_order_block", {
+      p_customer_id: selectedCustomerId,
+      p_blocked_until: blockedUntil,
+    });
+    if (error) {
+      setCustomerActionError(`No se pudo actualizar la limitación: ${error.message}`);
+    } else {
+      setCustomerProfiles((current) =>
+        current.map((profile) =>
+          profile.id === selectedCustomerId
+            ? { ...profile, orders_blocked_until: blockedUntil }
+            : profile,
+        ),
+      );
+      setCustomerActionMessage(
+        blockedUntil ? "Se pausaron las nuevas solicitudes por el plazo elegido." : "Se quitó la pausa de nuevas solicitudes.",
+      );
+    }
+    setIsSavingCustomerAction(false);
+  }
+
   if (!isLoggedIn) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#fffaf4] px-4 py-12">
@@ -332,6 +446,116 @@ export function ChamoAdminDashboard() {
           ))}
         </section>
 
+        {supabaseClient ? (
+          <section className="mb-8 rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#FF5A0A]">Revisión responsable</p>
+              <h2 className="mt-1 text-2xl font-black text-[#0B347A]">Perfiles y reputación de clientes</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Solo registra un impago después de revisar evidencia. Cada caso confirmado resta 20 puntos y no pausa pedidos automáticamente.
+              </p>
+            </div>
+
+            <label className="block max-w-xl">
+              <span className="mb-2 block text-sm font-semibold text-slate-700">Cliente</span>
+              <select
+                value={selectedCustomerId}
+                onChange={(event) => setSelectedCustomerId(event.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-900 outline-none focus:border-[#0B347A]"
+              >
+                {customerProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.full_name} · {profile.email}
+                  </option>
+                ))}
+                {customerProfiles.length === 0 ? <option value="">Todavía no hay cuentas de clientes</option> : null}
+              </select>
+            </label>
+
+            {customerProfiles.find((profile) => profile.id === selectedCustomerId) ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-blue-50 p-4">
+                <CircleUserRound className="h-6 w-6 text-[#0B347A]" />
+                <div className="min-w-48">
+                  <div className="font-bold text-slate-900">
+                    {customerProfiles.find((profile) => profile.id === selectedCustomerId)?.full_name}
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    {customerProfiles.find((profile) => profile.id === selectedCustomerId)?.email}
+                  </div>
+                </div>
+                <div className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-[#0B347A]">
+                  Reputación: {customerProfiles.find((profile) => profile.id === selectedCustomerId)?.reputation_score}/100
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-6 lg:grid-cols-2">
+              <form onSubmit={confirmCustomerNonpayment} className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                <h3 className="font-bold text-amber-950">Confirmar impago</h3>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Pedido entregado
+                  <select
+                    name="orderId"
+                    required
+                    defaultValue=""
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                  >
+                    <option value="" disabled>Selecciona un pedido</option>
+                    {orders
+                      .filter((order) => order.customerId === selectedCustomerId && order.status === "entregados")
+                      .map((order) => <option key={order.id} value={order.id}>{order.id} · {order.details}</option>)}
+                  </select>
+                </label>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Evidencia revisada
+                  <textarea
+                    required
+                    minLength={10}
+                    value={evidenceSummary}
+                    onChange={(event) => setEvidenceSummary(event.target.value)}
+                    rows={3}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
+                    placeholder="Describe qué comprobaste para confirmar que el pago quedó pendiente."
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Nota interna (opcional)
+                  <textarea
+                    value={violationNotes}
+                    onChange={(event) => setViolationNotes(event.target.value)}
+                    rows={2}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
+                  />
+                </label>
+                <button type="submit" disabled={isSavingCustomerAction || !selectedCustomerId} className="rounded-full bg-amber-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+                  {isSavingCustomerAction ? "Guardando…" : "Confirmar y restar 20 puntos"}
+                </button>
+              </form>
+
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-bold text-slate-900">Pausar nuevas solicitudes</h3>
+                <p className="text-sm leading-5 text-slate-600">
+                  La limitación es una decisión manual del administrador; no se activa automáticamente al bajar la puntuación.
+                </p>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Duración
+                  <select value={blockDuration} onChange={(event) => setBlockDuration(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                    <option value="1">1 día</option>
+                    <option value="3">3 días</option>
+                    <option value="7">7 días</option>
+                    <option value="0">Quitar pausa</option>
+                  </select>
+                </label>
+                <button type="button" onClick={() => void setCustomerOrderRestriction()} disabled={isSavingCustomerAction || !selectedCustomerId} className="rounded-full bg-[#0B347A] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+                  Aplicar decisión
+                </button>
+              </div>
+            </div>
+            {customerActionError ? <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{customerActionError}</p> : null}
+            {customerActionMessage ? <p role="status" className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{customerActionMessage}</p> : null}
+          </section>
+        ) : null}
+
         <section className="grid gap-6 xl:grid-cols-[1.7fr_0.9fr]">
           <div className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-4">
@@ -389,6 +613,7 @@ export function ChamoAdminDashboard() {
                       <td className="px-3 py-3">
                         <div className="font-semibold">{order.client}</div>
                         <div className="text-xs text-slate-500">{order.phone}</div>
+                        {order.email ? <div className="text-xs text-slate-500">{order.email}</div> : null}
                       </td>
                       <td className="px-3 py-3 capitalize">{order.type}</td>
                       <td className="px-3 py-3">
@@ -422,6 +647,7 @@ export function ChamoAdminDashboard() {
                     <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Cliente</div>
                     <div className="mt-1 font-bold text-slate-900">{selectedOrder.client}</div>
                     <div>{selectedOrder.phone}</div>
+                    {selectedOrder.email ? <div>{selectedOrder.email}</div> : null}
                   </div>
 
                   <div className="flex items-start gap-3">
@@ -498,15 +724,26 @@ export function ChamoAdminDashboard() {
               <h3 className="text-xl font-black text-slate-900">Clientes</h3>
             </div>
             <div className="space-y-3">
-              {demoCustomers.map((customer) => (
-                <div key={customer.phone} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2">
-                  <div>
-                    <div className="font-semibold text-slate-800">{customer.name}</div>
-                    <div className="text-xs text-slate-500">{customer.phone}</div>
-                  </div>
-                  <CircleUserRound className="h-5 w-5 text-slate-400" />
-                </div>
-              ))}
+              {supabaseClient
+                ? customerProfiles.map((customer) => (
+                    <div key={customer.id} className="flex items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-slate-800">{customer.full_name}</div>
+                        <div className="truncate text-xs text-slate-500">{customer.email}</div>
+                        <div className="text-xs font-semibold text-[#0B347A]">{customer.reputation_score}/100</div>
+                      </div>
+                      <CircleUserRound className="h-5 w-5 shrink-0 text-slate-400" />
+                    </div>
+                  ))
+                : demoCustomers.map((customer) => (
+                    <div key={customer.phone} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2">
+                      <div>
+                        <div className="font-semibold text-slate-800">{customer.name}</div>
+                        <div className="text-xs text-slate-500">{customer.phone}</div>
+                      </div>
+                      <CircleUserRound className="h-5 w-5 text-slate-400" />
+                    </div>
+                  ))}
             </div>
           </div>
 

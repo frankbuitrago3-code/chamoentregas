@@ -7,6 +7,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 export function SetPasswordForm() {
   const client = getSupabaseClient();
   const [hasSession, setHasSession] = useState(false);
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(client !== null);
   const [isSaving, setIsSaving] = useState(false);
   const [password, setPassword] = useState("");
@@ -22,13 +23,36 @@ export function SetPasswordForm() {
     }
 
     let isMounted = true;
-    const { data } = client.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) setHasSession(Boolean(session));
+    const { data } = client.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      const isPasswordLink =
+        event === "PASSWORD_RECOVERY" ||
+        window.location.hash.includes("type=recovery") ||
+        window.location.hash.includes("type=invite");
+
+      if (session && isPasswordLink) {
+        setHasSession(true);
+        setIsSettingPassword(true);
+      } else if (session && event === "SIGNED_IN") {
+        window.location.replace("/perfil");
+      } else {
+        setHasSession(Boolean(session));
+      }
     });
 
     client.auth.getSession().then(({ data: sessionData, error }) => {
       if (!isMounted) return;
-      setHasSession(Boolean(sessionData.session));
+      const isPasswordLink =
+        window.location.hash.includes("type=recovery") ||
+        window.location.hash.includes("type=invite");
+      if (sessionData.session && isPasswordLink) {
+        setHasSession(true);
+        setIsSettingPassword(true);
+      } else if (sessionData.session) {
+        window.location.replace("/perfil");
+      } else {
+        setHasSession(false);
+      }
       if (error) setErrorMessage(error.message);
       setIsCheckingSession(false);
     });
@@ -111,7 +135,7 @@ export function SetPasswordForm() {
               </p>
             ) : null}
           </>
-        ) : (
+        ) : isSettingPassword ? (
           <>
             <p className="mt-4 text-sm text-slate-600">
               Elige una contraseña para tu cuenta. No la compartas con nadie.
@@ -159,6 +183,8 @@ export function SetPasswordForm() {
               </button>
             </form>
           </>
+        ) : (
+          <p className="mt-4 text-sm text-slate-600">Abriendo tu cuenta…</p>
         )}
       </section>
     </main>

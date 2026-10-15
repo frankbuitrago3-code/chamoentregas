@@ -10,6 +10,8 @@ ChamoEntregas es una app local de entregas para Coloncito, Táchira, diseñada p
 - PWA instalable desde el navegador del teléfono (requiere HTTPS)
 - Panel administrativo protegido con estados de pedidos y cobertura
 - Interfaz móvil protegida para repartidores en `/repartidor`
+- Registro e inicio de sesión de clientes por correo, perfil privado e historial
+- Reputación con incidencias de impago confirmadas por administración
 
 ## Requisitos
 
@@ -97,11 +99,21 @@ Los estados de pedido usados son:
 ### Paso a paso para crear la base en Supabase
 
 1. Abre tu proyecto en Supabase.
-2. En SQL Editor, crea las tablas con el contenido de `supabase/schema.sql`.
-3. Asegúrate de ejecutar el script completo.
+2. En SQL Editor, ejecuta completo el contenido de `supabase/schema.sql`.
+3. Ejecuta también `supabase/migrations/20261015_customer_accounts_and_reputation.sql` para añadir perfiles, cuentas de clientes, historial y reputación.
 4. Copia la URL del proyecto y la clave anónima en `.env.local`.
 
-El esquema crea políticas RLS diferenciadas: los visitantes pueden insertar solicitudes nuevas; administradores pueden operar pedidos y cobertura; repartidores autenticados solo ven pedidos nuevos de su ciudad y sus propias entregas. Aceptar un pedido y avanzar su estado se realiza mediante funciones SQL protegidas.
+El esquema y la migración crean políticas RLS diferenciadas: clientes autenticados pueden solicitar y consultar únicamente sus pedidos, y actualizar solo su nombre y teléfono; administradores operan pedidos, perfiles, incidencias y cobertura; repartidores autenticados solo ven pedidos nuevos de su ciudad y sus propias entregas. Aceptar un pedido, avanzar estados y moderar restricciones se realiza mediante funciones SQL protegidas.
+
+### Registro y reputación de clientes
+
+- El cliente crea una cuenta con correo, contraseña y nombre. El teléfono es opcional en su perfil.
+- Una solicitud se asocia a la identidad autenticada y el backend completa el correo y nombre desde el perfil. La política de base de datos impide pedidos anónimos y solicitudes durante una pausa vigente.
+- Los clientes consultan su perfil, reputación, incidencias confirmadas e historial en `/perfil`.
+- La reputación inicia en 100/100. Solo el administrador puede registrar un impago tras revisar evidencia vinculada a un pedido entregado. Un caso confirmado descuenta 20 puntos; la base impide duplicar el reporte para el mismo pedido.
+- Bajar puntos no bloquea automáticamente al cliente. Si la revisión lo justifica, el administrador puede pausar nuevas solicitudes por 1, 3 o 7 días desde el panel; también puede quitar la pausa.
+- La notificación y la evidencia quedan visibles al cliente en su perfil. Los reportes son privados para el cliente afectado y la administración.
+- El formulario original de foto de paquete conserva el nombre de archivo, pero todavía no sube la imagen a Storage.
 
 ### Crear cuentas para el equipo
 
@@ -175,3 +187,8 @@ La dirección `http://localhost:3000` y la dirección HTTP de la red Wi-Fi sirve
 - No se incluye seguimiento GPS en vivo.
 - El sistema está preparado para integrar aún más funciones con Supabase y la app móvil en el futuro.
 - El proyecto usa beneficios de marca y estilo propio, sin copiar ninguna marca existente.
+
+## Guías en PDF
+
+- [Guía de funcionamiento de ChamoEntregas](./docs/guia-funcionalidad.pdf)
+- [Tutorial paso a paso de cómo se construyó](./docs/tutorial-construccion.pdf)

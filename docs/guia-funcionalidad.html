@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Guía funcional de ChamoEntregas</title>
+  <style>
+    @page { size: letter; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #19304d; font: 11pt/1.48 Arial, sans-serif; }
+    .page { position: relative; width: 8.5in; height: 11in; padding: .7in .72in .68in; page-break-after: always; break-after: page; overflow: hidden; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .cover { display: flex; flex-direction: column; justify-content: center; color: white; background: linear-gradient(145deg,#0b347a 0%,#124b9c 64%,#ff5a0a 160%); }
+    .brand { color: #ff5a0a; font-size: 10pt; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }
+    .cover .brand { color: #ffd2bd; }
+    h1 { max-width: 6in; margin: 20px 0 14px; color: #0b347a; font-size: 31pt; line-height: 1.08; }
+    .cover h1 { color: white; font-size: 39pt; }
+    h2 { margin: 18px 0 9px; color: #0b347a; font-size: 19pt; line-height: 1.18; }
+    h3 { margin: 12px 0 5px; color: #0b347a; font-size: 12pt; }
+    p { margin: 6px 0 10px; }
+    ul, ol { margin: 6px 0 10px; padding-left: 21px; }
+    li { margin: 4px 0; }
+    .subtitle { max-width: 5.8in; font-size: 16pt; line-height: 1.4; }
+    .small { color: #5c6c81; font-size: 9pt; }
+    .cover .small { color: #d9e7fb; }
+    .kicker { margin-top: 18px; color: #ff5a0a; font-size: 9pt; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin: 12px 0; }
+    .card { padding: 12px 14px; border: 1px solid #dce5ef; border-radius: 15px; background: #f8fafc; }
+    .card strong { color: #0b347a; }
+    .callout { margin: 12px 0; padding: 12px 15px; border-left: 4px solid #ff5a0a; border-radius: 8px; background: #fff4ed; }
+    .good { border-left-color: #13845b; background: #effaf5; }
+    .warn { border-left-color: #d28b00; background: #fff8e8; }
+    .diagram { margin: 14px 0; padding: 12px; border: 1px solid #dce5ef; border-radius: 16px; background: #fbfdff; }
+    .diagram svg { display: block; width: 100%; height: auto; }
+    .steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin: 14px 0; }
+    .step { padding: 11px 10px; border-radius: 13px; background: #edf3fb; text-align: center; }
+    .step b { display: block; margin-bottom: 5px; color: #0b347a; }
+    .footer { position: absolute; right: .72in; bottom: .32in; left: .72in; display: flex; justify-content: space-between; color: #7d8998; font-size: 8pt; }
+    .page-no:after { counter-increment: page; content: counter(page); }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9.5pt; }
+    th { padding: 8px; background: #0b347a; color: white; text-align: left; }
+    td { padding: 8px; border-bottom: 1px solid #dce5ef; vertical-align: top; }
+    code { padding: 1px 4px; border-radius: 4px; background: #edf3fb; color: #0b347a; font: 9pt Consolas, monospace; }
+    .check { color: #13845b; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="brand">ChamoEntregas · Coloncito, Táchira</div>
+    <h1>Guía de funcionamiento</h1>
+    <p class="subtitle">Qué ofrece la aplicación, cómo se conectan clientes, repartidores y administración, y qué reglas protegen cada pedido.</p>
+    <div class="diagram" style="margin-top:34px;background:#ffffff16;border-color:#ffffff55">
+      <svg viewBox="0 0 680 150" role="img" aria-label="Cliente, plataforma, repartidor y administrador colaboran en una entrega">
+        <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff8a52"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="8" y="35" width="142" height="76" rx="17" fill="#fff"/><text x="79" y="67" fill="#0b347a" font-size="16" font-weight="700">Cliente</text><text x="79" y="91" fill="#53657e" font-size="12">cuenta y pedido</text>
+          <rect x="188" y="35" width="142" height="76" rx="17" fill="#fff"/><text x="259" y="67" fill="#0b347a" font-size="16" font-weight="700">ChamoEntregas</text><text x="259" y="91" fill="#53657e" font-size="12">web + Supabase</text>
+          <rect x="368" y="35" width="142" height="76" rx="17" fill="#fff"/><text x="439" y="67" fill="#0b347a" font-size="16" font-weight="700">Repartidor</text><text x="439" y="91" fill="#53657e" font-size="12">recoge y entrega</text>
+          <rect x="548" y="35" width="124" height="76" rx="17" fill="#fff"/><text x="610" y="67" fill="#0b347a" font-size="16" font-weight="700">Admin</text><text x="610" y="91" fill="#53657e" font-size="12">supervisa</text>
+          <path d="M150 73 H182 M330 73 H362 M510 73 H542" stroke="#ff8a52" stroke-width="4" marker-end="url(#arrow)"/>
+        </g>
+      </svg>
+    </div>
+    <p class="small">Manual para operación, capacitación del equipo y consulta de clientes.</p>
+    <div class="footer"><span>Guía funcional · Edición 2026</span><span>chamoentregas.vercel.app</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">01 · Qué es</div>
+    <h2>Una plataforma local para coordinar entregas</h2>
+    <p>ChamoEntregas conecta a vecinos de Coloncito con repartidores para pedir comida, enviar paquetes y hacer mandados. El sitio público funciona en teléfono y computador, se puede instalar como PWA y comparte los datos con Supabase.</p>
+    <div class="grid">
+      <div class="card"><strong>Clientes</strong><br>Crean una cuenta con correo y contraseña, sin obligación de dar un teléfono. Desde su perfil consultan pedidos y reputación.</div>
+      <div class="card"><strong>Repartidores</strong><br>Inician sesión en <code>/repartidor</code>, revisan pedidos de su zona y actualizan el avance de sus entregas.</div>
+      <div class="card"><strong>Administración</strong><br>En <code>/admin</code> organiza pedidos, asigna repartidor, revisa contactos y gestiona cobertura e incidencias.</div>
+      <div class="card"><strong>Supabase</strong><br>Gestiona cuentas, perfiles y pedidos; aplica permisos por rol y mantiene cambios sincronizados.</div>
+    </div>
+    <h3>Qué sí incluye</h3>
+    <ul>
+      <li>Solicitud de comida, paquetes o mandados y consulta del historial personal.</li>
+      <li>Operación manual de pedidos y estados compartidos.</li>
+      <li>Correo de cliente asociado al pedido; teléfono opcional y editable en el perfil.</li>
+      <li>Reputación basada en impagos confirmados por la administración con evidencia.</li>
+    </ul>
+    <div class="callout warn"><strong>Qué no incluye:</strong> no se cobra en línea ni se muestra GPS en vivo. El cliente paga en efectivo al recibir.</div>
+    <div class="footer"><span>ChamoEntregas · Guía funcional</span><span>02</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">02 · Recorrido del cliente</div>
+    <h2>De la cuenta a la entrega</h2>
+    <div class="steps">
+      <div class="step"><b>1. Registrarse</b>Correo, contraseña y nombre. El teléfono es opcional.</div>
+      <div class="step"><b>2. Verificar</b>Si Supabase solicita confirmación, abrir el correo recibido.</div>
+      <div class="step"><b>3. Solicitar</b>Elegir servicio, recogida y destino; el pedido queda ligado a la cuenta.</div>
+      <div class="step"><b>4. Recibir</b>Seguir el estado y pagar en efectivo al repartidor.</div>
+    </div>
+    <div class="diagram">
+      <svg viewBox="0 0 700 214" role="img" aria-label="Flujo de cuenta y pedido de cliente">
+        <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#ff5a0a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="18" y="20" width="190" height="65" rx="14" fill="#edf3fb" stroke="#b9cce5"/><text x="113" y="46" fill="#0b347a" font-size="14" font-weight="700">/cuenta</text><text x="113" y="66" fill="#53657e" font-size="12">registro o inicio de sesión</text>
+          <rect x="255" y="20" width="190" height="65" rx="14" fill="#edf3fb" stroke="#b9cce5"/><text x="350" y="46" fill="#0b347a" font-size="14" font-weight="700">Perfil de cliente</text><text x="350" y="66" fill="#53657e" font-size="12">datos y reputación</text>
+          <rect x="492" y="20" width="190" height="65" rx="14" fill="#fff4ed" stroke="#ffc4a8"/><text x="587" y="46" fill="#0b347a" font-size="14" font-weight="700">Solicitud</text><text x="587" y="66" fill="#53657e" font-size="12">identidad de cuenta verificada</text>
+          <path d="M208 52 H248 M445 52 H485" stroke="#ff5a0a" stroke-width="3" marker-end="url(#a)"/>
+          <rect x="255" y="126" width="190" height="65" rx="14" fill="#effaf5" stroke="#a8dbc6"/><text x="350" y="152" fill="#0b347a" font-size="14" font-weight="700">Supabase + RLS</text><text x="350" y="172" fill="#53657e" font-size="12">guarda y protege el pedido</text>
+          <rect x="492" y="126" width="190" height="65" rx="14" fill="#effaf5" stroke="#a8dbc6"/><text x="587" y="152" fill="#0b347a" font-size="14" font-weight="700">/perfil</text><text x="587" y="172" fill="#53657e" font-size="12">historial privado del cliente</text>
+          <path d="M587 85 V118 M445 158 H485" stroke="#ff5a0a" stroke-width="3" marker-end="url(#a)"/>
+        </g>
+      </svg>
+    </div>
+    <h3>Tipos de solicitud</h3>
+    <table><thead><tr><th>Servicio</th><th>Información principal</th><th>Antes de confirmar</th></tr></thead><tbody>
+      <tr><td>Comida</td><td>Restaurante, pedido y dirección.</td><td>El cliente debe comprobar que el restaurante esté abierto.</td></tr>
+      <tr><td>Paquete</td><td>Descripción, tamaño y dirección.</td><td>El campo de foto es opcional; la carga real de la foto a Storage aún no está habilitada.</td></tr>
+      <tr><td>Mandado</td><td>Lista de productos o tarea y dirección.</td><td>Dejar notas útiles para el repartidor.</td></tr>
+    </tbody></table>
+    <div class="footer"><span>ChamoEntregas · Guía funcional</span><span>03</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">03 · Estado del pedido</div>
+    <h2>El pedido avanza con pasos claros</h2>
+    <p>El panel y la interfaz del repartidor leen los mismos estados de la base de datos. Así, una actualización de operación se refleja en las otras vistas.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Ciclo de vida de un pedido desde nuevo hasta entregado o cancelado">
+        <defs><marker id="b" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#0b347a"/></marker><marker id="c" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#e23d4f"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="15" y="106" width="120" height="58" rx="14" fill="#e0f2fe"/><text x="75" y="141" fill="#0b347a" font-size="14" font-weight="700">Nuevos</text>
+          <rect x="160" y="106" width="120" height="58" rx="14" fill="#ede9fe"/><text x="220" y="141" fill="#0b347a" font-size="14" font-weight="700">Asignados</text>
+          <rect x="305" y="106" width="120" height="58" rx="14" fill="#fef3c7"/><text x="365" y="141" fill="#0b347a" font-size="14" font-weight="700">Recogidos</text>
+          <rect x="450" y="106" width="120" height="58" rx="14" fill="#ffedd5"/><text x="510" y="141" fill="#0b347a" font-size="14" font-weight="700">En camino</text>
+          <rect x="595" y="106" width="112" height="58" rx="14" fill="#dcfce7"/><text x="651" y="141" fill="#0b347a" font-size="14" font-weight="700">Entregados</text>
+          <path d="M135 135 H153 M280 135 H298 M425 135 H443 M570 135 H588" stroke="#0b347a" stroke-width="3" marker-end="url(#b)"/>
+          <rect x="270" y="220" width="150" height="55" rx="14" fill="#ffe4e6"/><text x="345" y="253" fill="#a51e36" font-size="14" font-weight="700">Cancelados</text>
+          <path d="M75 165 C75 225 232 247 262 247" fill="none" stroke="#e23d4f" stroke-width="3" marker-end="url(#c)"/>
+          <text x="112" y="211" fill="#a51e36" font-size="12">administra admin</text>
+          <text x="342" y="70" fill="#53657e" font-size="12">El repartidor avanza: asignado → recogido → en camino → entregado</text>
+        </g>
+      </svg>
+    </div>
+    <div class="grid">
+      <div class="card"><strong>Nuevos:</strong> solicitud recibida, esperando asignación.</div>
+      <div class="card"><strong>Asignados:</strong> un repartidor ya tomó el pedido.</div>
+      <div class="card"><strong>Recogidos:</strong> el producto o paquete está con el repartidor.</div>
+      <div class="card"><strong>En camino:</strong> traslado al destino.</div>
+      <div class="card"><strong>Entregados:</strong> servicio completado; se paga en efectivo.</div>
+      <div class="card"><strong>Cancelados:</strong> la operación terminó sin completar la entrega.</div>
+    </div>
+    <div class="callout"><strong>Importante:</strong> la aplicación no transmite ubicación en vivo. Los estados son actualizados manualmente por el equipo.</div>
+    <div class="footer"><span>ChamoEntregas · Guía funcional</span><span>04</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">04 · Perfiles y reputación</div>
+    <h2>Reputación basada en hechos revisados</h2>
+    <p>Cada cuenta empieza con una puntuación de <strong>100/100</strong>. No es una puntuación subjetiva ni un reporte automático del repartidor: registra únicamente impagos que el administrador haya revisado.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 690 205" role="img" aria-label="Administrador verifica evidencia y un impago confirmado descuenta 20 puntos">
+        <defs><marker id="d" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#ff5a0a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="10" y="53" width="164" height="86" rx="15" fill="#edf3fb"/><text x="92" y="83" fill="#0b347a" font-size="14" font-weight="700">Pedido entregado</text><text x="92" y="106" fill="#53657e" font-size="12">asociado a la cuenta</text>
+          <rect x="194" y="53" width="164" height="86" rx="15" fill="#fff8e8"/><text x="276" y="83" fill="#0b347a" font-size="14" font-weight="700">Admin revisa</text><text x="276" y="106" fill="#53657e" font-size="12">evidencia y detalles</text>
+          <rect x="378" y="53" width="136" height="86" rx="15" fill="#fff4ed"/><text x="446" y="83" fill="#0b347a" font-size="14" font-weight="700">Confirma</text><text x="446" y="106" fill="#53657e" font-size="12">solo si procede</text>
+          <rect x="534" y="53" width="146" height="86" rx="15" fill="#effaf5"/><text x="607" y="83" fill="#0b347a" font-size="14" font-weight="700">−20 puntos</text><text x="607" y="106" fill="#53657e" font-size="12">mínimo 0/100</text>
+          <path d="M174 96 H187 M358 96 H371 M514 96 H527" stroke="#ff5a0a" stroke-width="3" marker-end="url(#d)"/>
+          <text x="345" y="177" fill="#53657e" font-size="12">Un pedido no puede generar dos impagos confirmados.</text>
+        </g>
+      </svg>
+    </div>
+    <ul>
+      <li>El administrador selecciona al cliente y un pedido que ya figure como entregado.</li>
+      <li>Debe escribir qué evidencia revisó. La aplicación guarda pedido, explicación, fecha y administrador que confirmó.</li>
+      <li>El sistema resta 20 puntos una sola vez por pedido; la puntuación nunca baja de cero.</li>
+      <li>Los reportes se muestran al cliente afectado en su perfil para que pueda contactar a soporte.</li>
+      <li>Una reputación baja no suspende automáticamente. El administrador decide si pausa pedidos nuevos durante 1, 3 o 7 días, o quita una pausa.</li>
+    </ul>
+    <div class="callout warn"><strong>Regla de equidad:</strong> nunca uses “Confirmar impago” solo por una sospecha. Revisa el pedido y la evidencia primero; registra la razón con claridad.</div>
+    <div class="footer"><span>ChamoEntregas · Guía funcional</span><span>05</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">05 · Privacidad y operación</div>
+    <h2>Quién puede ver y cambiar cada dato</h2>
+    <table><thead><tr><th>Dato o acción</th><th>Cliente</th><th>Repartidor</th><th>Administrador</th></tr></thead><tbody>
+      <tr><td>Correo y perfil personal</td><td>Ve y edita su nombre y teléfono.</td><td>No ve perfiles ajenos.</td><td>Consulta los perfiles para operar.</td></tr>
+      <tr><td>Pedidos</td><td>Solo los pedidos de su cuenta.</td><td>Pedidos nuevos de su zona y los asignados a él.</td><td>Consulta y administra pedidos.</td></tr>
+      <tr><td>Reputación e incidencias</td><td>Consulta su propia puntuación y sus reportes.</td><td>No puede registrar ni modificar reportes.</td><td>Confirma impago con evidencia y decide restricciones temporales.</td></tr>
+      <tr><td>Contraseña</td><td>La establece desde el correo de autenticación.</td><td>La establece desde su invitación.</td><td>La establece desde su invitación.</td></tr>
+    </tbody></table>
+    <p>La base de datos aplica políticas de seguridad por fila (RLS). Además, asigna la identidad del pedido desde la sesión de Supabase, no desde el nombre o correo que el navegador intente enviar.</p>
+    <h3>Para el equipo</h3>
+    <ul>
+      <li>No compartir contraseñas. Cada persona usa su propio correo y cuenta.</li>
+      <li>No colocar claves secretas de Supabase en el navegador ni en variables que empiecen por <code>NEXT_PUBLIC_</code>.</li>
+      <li>Confirmar cobertura, dirección, productos, importe acordado y efectivo al recibir.</li>
+      <li>Para restaurantes, el cliente comprueba el horario antes de enviar el pedido.</li>
+    </ul>
+    <div class="callout good"><strong>Consejo de soporte:</strong> si un correo de confirmación no llega, revisar spam y verificar que se escribió bien la dirección.</div>
+    <div class="footer"><span>ChamoEntregas · Guía funcional</span><span>06</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">06 · Límites actuales</div>
+    <h2>Qué hacer y qué esperar hoy</h2>
+    <div class="grid">
+      <div class="card"><strong>Cuenta de cliente</strong><br>Regístrate en <code>/cuenta</code>; entra en <code>/perfil</code> para editar nombre/teléfono y consultar pedidos.</div>
+      <div class="card"><strong>Panel de operación</strong><br>El equipo autorizado entra en <code>/admin</code>.</div>
+      <div class="card"><strong>Panel de repartidor</strong><br>El equipo autorizado entra en <code>/repartidor</code>.</div>
+      <div class="card"><strong>Disponibilidad</strong><br>La app necesita internet para iniciar sesión, crear solicitudes y sincronizar estados.</div>
+    </div>
+    <h3>Fuera del alcance actual</h3>
+    <ul>
+      <li>Sin pago online, billetera ni procesamiento de tarjetas.</li>
+      <li>Sin ubicación GPS en vivo ni mapa de seguimiento.</li>
+      <li>La foto del paquete aún no se almacena; se conserva el nombre del archivo seleccionado.</li>
+      <li>La pausa temporal limita pedidos nuevos, no borra el historial ni altera entregas existentes.</li>
+    </ul>
+    <h3>Enlaces útiles</h3>
+    <p>Web: <strong>https://chamoentregas.vercel.app</strong><br>Repositorio: <strong>https://github.com/frankbuitrago3-code/chamoentregas</strong></p>
+    <div class="callout"><strong>Este documento describe la versión actual.</strong> Cambios en reglas de reputación, cobertura o medios de pago deben acordarse y documentarse antes de publicarse.</div>
+    <p class="small">ChamoEntregas · Coloncito, Táchira · 15 de octubre de 2026</p>
+    <div class="footer"><span>ChamoEntregas · Guía funcional</span><span>07</span></div>
+  </section>
+</body>
+</html>

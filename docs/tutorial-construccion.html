@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Tutorial: cómo se construyó ChamoEntregas</title>
+  <style>
+    @page { size: letter; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #19304d; font: 10.5pt/1.45 Arial, sans-serif; }
+    .page { position: relative; width: 8.5in; height: 11in; padding: .66in .72in .67in; page-break-after: always; break-after: page; overflow: hidden; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .cover { display: flex; flex-direction: column; justify-content: center; color: white; background: linear-gradient(145deg,#0b347a 0%,#124b9c 64%,#ff5a0a 160%); }
+    .brand { color: #ff5a0a; font-size: 9pt; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
+    .cover .brand { color: #ffd2bd; }
+    h1 { max-width: 6.3in; margin: 19px 0 14px; color: #0b347a; font-size: 29pt; line-height: 1.08; }
+    .cover h1 { color: white; font-size: 37pt; }
+    h2 { margin: 16px 0 8px; color: #0b347a; font-size: 18pt; line-height: 1.17; }
+    h3 { margin: 11px 0 4px; color: #0b347a; font-size: 11.5pt; }
+    p { margin: 5px 0 9px; }
+    ul, ol { margin: 5px 0 8px; padding-left: 21px; }
+    li { margin: 3px 0; }
+    .subtitle { max-width: 6in; font-size: 15pt; line-height: 1.38; }
+    .small { color: #5c6c81; font-size: 8.5pt; }
+    .cover .small { color: #d9e7fb; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 0; }
+    .card { padding: 10px 12px; border: 1px solid #dce5ef; border-radius: 14px; background: #f8fafc; }
+    .card strong { color: #0b347a; }
+    .callout { margin: 10px 0; padding: 10px 13px; border-left: 4px solid #ff5a0a; border-radius: 8px; background: #fff4ed; }
+    .good { border-left-color: #13845b; background: #effaf5; }
+    .warn { border-left-color: #d28b00; background: #fff8e8; }
+    .diagram { margin: 11px 0; padding: 10px; border: 1px solid #dce5ef; border-radius: 15px; background: #fbfdff; }
+    .diagram svg { display: block; width: 100%; height: auto; }
+    .footer { position: absolute; right: .72in; bottom: .3in; left: .72in; display: flex; justify-content: space-between; color: #7d8998; font-size: 8pt; }
+    pre { margin: 8px 0; padding: 10px 12px; border-radius: 11px; background: #102441; color: #e6efff; font: 8.2pt/1.38 Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    code { padding: 1px 4px; border-radius: 4px; background: #edf3fb; color: #0b347a; font: 8.8pt Consolas, monospace; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; }
+    th { padding: 7px; background: #0b347a; color: white; text-align: left; }
+    td { padding: 7px; border-bottom: 1px solid #dce5ef; vertical-align: top; }
+    .stepnum { display: inline-block; min-width: 23px; margin-right: 5px; border-radius: 50%; background: #ff5a0a; color: white; text-align: center; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="brand">Aprende construyéndola · 2026</div>
+    <h1>Cómo se hizo ChamoEntregas</h1>
+    <p class="subtitle">Un tutorial de principio a fin: interfaz, cuentas, base de datos, permisos, operación, reputación y publicación web.</p>
+    <div class="diagram" style="margin-top:30px;background:#ffffff16;border-color:#ffffff55">
+      <svg viewBox="0 0 670 180" role="img" aria-label="Diagrama de arquitectura entre navegador, Next.js, Supabase y Vercel">
+        <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#ff8a52"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="15" y="46" width="145" height="82" rx="17" fill="#fff"/><text x="87" y="78" fill="#0b347a" font-size="16" font-weight="700">Navegador</text><text x="87" y="103" fill="#53657e" font-size="12">cliente / equipo</text>
+          <rect x="190" y="46" width="145" height="82" rx="17" fill="#fff"/><text x="262" y="78" fill="#0b347a" font-size="16" font-weight="700">Next.js</text><text x="262" y="103" fill="#53657e" font-size="12">React + TypeScript</text>
+          <rect x="365" y="46" width="145" height="82" rx="17" fill="#fff"/><text x="437" y="78" fill="#0b347a" font-size="16" font-weight="700">Supabase</text><text x="437" y="103" fill="#53657e" font-size="12">Auth + PostgreSQL</text>
+          <rect x="540" y="46" width="115" height="82" rx="17" fill="#fff"/><text x="597" y="78" fill="#0b347a" font-size="16" font-weight="700">Vercel</text><text x="597" y="103" fill="#53657e" font-size="12">publicación</text>
+          <path d="M160 87 H184 M335 87 H359 M510 87 H534" stroke="#ff8a52" stroke-width="4" marker-end="url(#arr)"/>
+          <text x="437" y="157" fill="#e9f1ff" font-size="11">la base autoriza cada consulta</text>
+        </g>
+      </svg>
+    </div>
+    <p class="small">Hecho para Coloncito, Táchira · Sitio: chamoentregas.vercel.app</p>
+    <div class="footer"><span>Tutorial técnico para aprender y mantener</span><span>01</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">01 · Mapa mental del proyecto</div>
+    <h2>Qué aporta cada pieza</h2>
+    <p>La aplicación se divide para que cada responsabilidad tenga un lugar claro. El navegador muestra pantallas; Supabase autentica usuarios y protege los datos; Vercel sirve la versión pública.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 700 250" role="img" aria-label="Mapa de rutas de la app conectado con componentes y backend">
+        <defs><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#0b347a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="250" y="8" width="200" height="42" rx="12" fill="#0b347a"/><text x="350" y="35" fill="white" font-size="15" font-weight="700">app/ · rutas Next.js</text>
+          <rect x="15" y="91" width="150" height="54" rx="12" fill="#edf3fb"/><text x="90" y="114" fill="#0b347a" font-size="13" font-weight="700">/</text><text x="90" y="132" fill="#53657e" font-size="11">sitio y pedido</text>
+          <rect x="183" y="91" width="150" height="54" rx="12" fill="#edf3fb"/><text x="258" y="114" fill="#0b347a" font-size="13" font-weight="700">/cuenta · /perfil</text><text x="258" y="132" fill="#53657e" font-size="11">cliente</text>
+          <rect x="351" y="91" width="150" height="54" rx="12" fill="#fff4ed"/><text x="426" y="114" fill="#0b347a" font-size="13" font-weight="700">/admin</text><text x="426" y="132" fill="#53657e" font-size="11">operación</text>
+          <rect x="519" y="91" width="166" height="54" rx="12" fill="#fff4ed"/><text x="602" y="114" fill="#0b347a" font-size="13" font-weight="700">/repartidor</text><text x="602" y="132" fill="#53657e" font-size="11">entregas</text>
+          <rect x="95" y="190" width="220" height="48" rx="12" fill="#effaf5"/><text x="205" y="219" fill="#0b347a" font-size="13" font-weight="700">components/ · interfaz reusable</text>
+          <rect x="385" y="190" width="220" height="48" rx="12" fill="#effaf5"/><text x="495" y="219" fill="#0b347a" font-size="13" font-weight="700">lib/supabase.ts · cliente común</text>
+          <path d="M350 50 V79 M90 145 V168 L183 190 M258 145 V181 M426 145 V168 L315 190 M602 145 V168 L495 190" fill="none" stroke="#0b347a" stroke-width="2.5" marker-end="url(#m)"/>
+        </g>
+      </svg>
+    </div>
+    <table><thead><tr><th>Archivo o carpeta</th><th>Responsabilidad</th></tr></thead><tbody>
+      <tr><td><code>app/</code></td><td>URL y páginas que Next.js entrega.</td></tr>
+      <tr><td><code>components/</code></td><td>Pantallas y controles React; separa la lógica visual por función.</td></tr>
+      <tr><td><code>lib/demo-data.ts</code></td><td>Tipos compartidos, estados y datos de muestra.</td></tr>
+      <tr><td><code>lib/supabase.ts</code></td><td>Construye un cliente Supabase reutilizable con las variables públicas.</td></tr>
+      <tr><td><code>supabase/schema.sql</code> y <code>migrations/</code></td><td>Definen tablas, políticas RLS, funciones y cambios graduales de base.</td></tr>
+    </tbody></table>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>02</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">02 · Preparar y ejecutar</div>
+    <h2>Primeros pasos en el computador</h2>
+    <ol>
+      <li><span class="stepnum">1</span>Instala Node.js LTS y Git.</li>
+      <li><span class="stepnum">2</span>Descarga el repositorio y abre su carpeta:</li>
+    </ol>
+    <pre>git clone https://github.com/frankbuitrago3-code/chamoentregas.git
+cd chamoentregas
+npm install</pre>
+    <ol start="3">
+      <li><span class="stepnum">3</span>Copia <code>.env.example</code> como <code>.env.local</code>.</li>
+      <li><span class="stepnum">4</span>Completa la URL y la clave publicable del proyecto Supabase:</li>
+    </ol>
+    <pre>NEXT_PUBLIC_SUPABASE_URL=https://TU-REF.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=TU-CLAVE-PUBLICABLE</pre>
+    <ol start="5">
+      <li><span class="stepnum">5</span>Inicia el servidor y abre el navegador:</li>
+    </ol>
+    <pre>npm run dev
+# http://localhost:3000</pre>
+    <div class="grid">
+      <div class="card"><strong>Vista pública:</strong><br><code>/</code></div>
+      <div class="card"><strong>Cuenta del cliente:</strong><br><code>/cuenta</code> y <code>/perfil</code></div>
+      <div class="card"><strong>Operación:</strong><br><code>/admin</code></div>
+      <div class="card"><strong>Repartidor:</strong><br><code>/repartidor</code></div>
+    </div>
+    <div class="callout warn"><strong>Nunca subas</strong> <code>.env.local</code>, contraseñas ni la clave <code>service_role</code> a GitHub. El navegador solo recibe la clave publicable; RLS hace cumplir los permisos.</div>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>03</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">03 · Base y cuentas</div>
+    <h2>Supabase conecta autenticación con perfiles</h2>
+    <p>PostgreSQL guarda la información. Supabase Auth guarda credenciales y crea una identidad UUID. Una función de base de datos crea automáticamente la fila de perfil correspondiente.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 690 232" role="img" aria-label="Relaciones entre usuarios de autenticación, perfiles, pedidos y reportes">
+        <defs><marker id="n" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#ff5a0a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="18" y="78" width="145" height="62" rx="13" fill="#edf3fb"/><text x="90" y="104" fill="#0b347a" font-size="13" font-weight="700">auth.users</text><text x="90" y="124" fill="#53657e" font-size="11">id y correo</text>
+          <rect x="207" y="22" width="185" height="74" rx="13" fill="#effaf5"/><text x="299" y="50" fill="#0b347a" font-size="13" font-weight="700">customer_profiles</text><text x="299" y="72" fill="#53657e" font-size="11">nombre, teléfono opcional</text><text x="299" y="87" fill="#53657e" font-size="11">reputación, pausa</text>
+          <rect x="207" y="142" width="185" height="70" rx="13" fill="#fff4ed"/><text x="299" y="169" fill="#0b347a" font-size="13" font-weight="700">orders</text><text x="299" y="191" fill="#53657e" font-size="11">pedido + customer_id</text>
+          <rect x="472" y="82" width="194" height="70" rx="13" fill="#fff8e8"/><text x="569" y="110" fill="#0b347a" font-size="13" font-weight="700">customer_violations</text><text x="569" y="132" fill="#53657e" font-size="11">impagos revisados</text>
+          <path d="M163 100 L199 70 M163 119 L199 170 M392 61 L465 100 M392 174 L465 132" fill="none" stroke="#ff5a0a" stroke-width="2.5" marker-end="url(#n)"/>
+        </g>
+      </svg>
+    </div>
+    <h3>Instalar o actualizar la base</h3>
+    <ol>
+      <li>En Supabase abre <strong>SQL Editor</strong>.</li>
+      <li>Para una base nueva, ejecuta <code>supabase/schema.sql</code>.</li>
+      <li>Ejecuta la migración <code>supabase/migrations/20261015_customer_accounts_and_reputation.sql</code>. En esta app ya creada, corre esa migración una sola vez.</li>
+      <li>Comprueba que existen <code>customer_profiles</code>, <code>customer_violations</code> y las nuevas columnas de <code>orders</code>.</li>
+    </ol>
+    <div class="callout good">La migración crea el perfil a partir de usuarios Auth existentes y también configura un trigger para próximos registros. No insertes credenciales directamente en tablas de negocio.</div>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>04</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">04 · De registro a pedido</div>
+    <h2>Por qué la cuenta y la base trabajan juntas</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 700 285" role="img" aria-label="Secuencia de registro y de solicitud entre cliente, interfaz y Supabase">
+        <defs><marker id="o" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#0b347a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="26" y="8" width="150" height="43" rx="11" fill="#edf3fb"/><text x="101" y="35" fill="#0b347a" font-size="13" font-weight="700">Cliente</text>
+          <rect x="274" y="8" width="150" height="43" rx="11" fill="#fff4ed"/><text x="349" y="35" fill="#0b347a" font-size="13" font-weight="700">Next.js /cuenta</text>
+          <rect x="522" y="8" width="150" height="43" rx="11" fill="#effaf5"/><text x="597" y="35" fill="#0b347a" font-size="13" font-weight="700">Supabase Auth + DB</text>
+          <path d="M101 57 V270 M349 57 V270 M597 57 V270" stroke="#b8c6d8" stroke-width="2" stroke-dasharray="5 5"/>
+          <text x="220" y="86" fill="#53657e" font-size="11">correo + contraseña + nombre</text><path d="M109 97 H337" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
+          <text x="470" y="126" fill="#53657e" font-size="11">Auth crea usuario; trigger crea perfil</text><path d="M357 137 H585" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
+          <text x="220" y="166" fill="#53657e" font-size="11">elige comida, paquete o mandado</text><path d="M109 177 H337" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
+          <text x="470" y="206" fill="#53657e" font-size="11">trigger asigna id, correo y nombre</text><path d="M357 217 H585" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
+          <text x="220" y="246" fill="#53657e" font-size="11">consulta su historial</text><path d="M585 257 H113" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
+        </g>
+      </svg>
+    </div>
+    <h3>Archivos que implementan el recorrido</h3>
+    <table><thead><tr><th>Archivo</th><th>Qué hace</th></tr></thead><tbody>
+      <tr><td><code>components/customer-account.tsx</code></td><td>Registra e inicia sesión con Supabase Auth; pide nombre y email, el teléfono no aparece como requisito.</td></tr>
+      <tr><td><code>components/chamo-landing.tsx</code></td><td>Lee la sesión y el perfil, asocia el pedido al UUID de la cuenta y deja opcional el teléfono.</td></tr>
+      <tr><td><code>components/customer-profile.tsx</code></td><td>Permite editar nombre/teléfono y leer solo pedidos e incidencias propios.</td></tr>
+      <tr><td><code>set_order_customer_identity()</code></td><td>En servidor reemplaza identidad enviada por navegador con la de la sesión y rechaza cuentas pausadas.</td></tr>
+    </tbody></table>
+    <pre>signUp({ email, password, options: { data: { full_name } } })
+orders.insert({ type, city, destination, ... })
+-- El trigger completa customer_id y customer_email.</pre>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>05</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">05 · Permisos y operación</div>
+    <h2>RLS es la puerta de seguridad de los datos</h2>
+    <p>RLS significa Row Level Security (seguridad por fila). Aunque el navegador tenga una clave publicable, cada consulta a la base debe cumplir reglas antes de leer o escribir.</p>
+    <div class="grid">
+      <div class="card"><strong>Cliente autenticado</strong><br>Puede enviar pedidos nuevos y ver los de su propio <code>customer_id</code>; actualiza solo nombre y teléfono.</div>
+      <div class="card"><strong>Administrador</strong><br>Se comprueba <code>app_metadata.role = admin</code>; gestiona pedidos y revisa clientes.</div>
+      <div class="card"><strong>Repartidor</strong><br>Ve pedidos nuevos de su ciudad y los asignados a su perfil activo.</div>
+      <div class="card"><strong>Visitante anónimo</strong><br>No puede enviar pedidos: debe registrarse o entrar primero.</div>
+    </div>
+    <h3>Cómo opera el equipo</h3>
+    <ol>
+      <li>El cliente envía pedido; la base lo registra como <code>nuevos</code>.</li>
+      <li>Admin revisa datos, cliente y cobertura; asigna a un repartidor.</li>
+      <li>Repartidor acepta y actualiza recogida, camino y entrega.</li>
+      <li>Admin observa la tabla actualizada por Realtime y coordina incidencias.</li>
+    </ol>
+    <div class="diagram">
+      <svg viewBox="0 0 690 170" role="img" aria-label="Panel y repartidor comparten tabla de pedidos con Supabase realtime">
+        <defs><marker id="p" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#ff5a0a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="16" y="44" width="170" height="70" rx="14" fill="#edf3fb"/><text x="101" y="72" fill="#0b347a" font-size="14" font-weight="700">Panel admin</text><text x="101" y="94" fill="#53657e" font-size="11">asignación y revisión</text>
+          <rect x="260" y="44" width="170" height="70" rx="14" fill="#effaf5"/><text x="345" y="72" fill="#0b347a" font-size="14" font-weight="700">orders + RLS</text><text x="345" y="94" fill="#53657e" font-size="11">fuente compartida</text>
+          <rect x="504" y="44" width="170" height="70" rx="14" fill="#fff4ed"/><text x="589" y="72" fill="#0b347a" font-size="14" font-weight="700">Interfaz courier</text><text x="589" y="94" fill="#53657e" font-size="11">estados controlados</text>
+          <path d="M186 68 H253 M504 90 H437" stroke="#ff5a0a" stroke-width="3" marker-end="url(#p)"/><text x="345" y="145" fill="#53657e" font-size="11">Realtime avisa de cambios; PostgreSQL sigue validando permisos.</text>
+        </g>
+      </svg>
+    </div>
+    <div class="callout warn">Nunca intentes “proteger” datos ocultando botones solamente. La autorización final debe estar en RLS o en una función SQL con verificación de rol.</div>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>06</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">06 · Reputación y moderación</div>
+    <h2>Decisiones humanas, reglas automáticas seguras</h2>
+    <p>La aplicación automatiza el registro y el cálculo, no decide si alguien actuó mal. Una persona administradora revisa primero el caso.</p>
+    <div class="steps" style="grid-template-columns:repeat(4,1fr)">
+      <div class="card"><strong>1 · Identificar</strong><br>Cliente y pedido entregado vinculado.</div>
+      <div class="card"><strong>2 · Revisar</strong><br>Administrador explica la evidencia comprobada.</div>
+      <div class="card"><strong>3 · Registrar</strong><br>Función protegida crea un evento único.</div>
+      <div class="card"><strong>4 · Reflejar</strong><br>Trigger resta 20 puntos, con mínimo 0.</div>
+    </div>
+    <h3>Qué está en el código SQL</h3>
+    <ul>
+      <li><code>customer_violations</code> guarda pedido, cliente, evidencia resumida, nota interna, fecha y administrador.</li>
+      <li>La llave única sobre pedido y tipo evita un descuento duplicado por la misma entrega.</li>
+      <li><code>admin_confirm_customer_nonpayment()</code> verifica el rol y comprueba que el pedido esté entregado y pertenezca al usuario.</li>
+      <li>Un trigger actualiza la reputación dentro de la transacción, así registro y cálculo no se separan.</li>
+      <li><code>admin_set_customer_order_block()</code> permite pausar nuevas solicitudes 1, 3 o 7 días; la puntuación por sí sola no bloquea.</li>
+    </ul>
+    <pre>100 puntos iniciales
+- 20 por cada impago confirmado por admin
+mínimo: 0
+sin bloqueo automático
+
+Ejemplo: 100 → 80 → 60
+El admin puede limitar 3 días tras revisar el caso.</pre>
+    <div class="callout good"><strong>Por qué así:</strong> evita que un repartidor o un visitante pueda acusar y sancionar directamente; se conserva el motivo y el cliente puede verlo en su perfil y contactar a soporte.</div>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>07</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">07 · Publicación y validación</div>
+    <h2>De los cambios locales a la web pública</h2>
+    <ol>
+      <li><strong>Desarrollo:</strong> cambiar componentes y SQL en la rama local; usar datos ficticios al probar.</li>
+      <li><strong>Base de datos:</strong> revisar migración y RLS; aplicar el SQL al proyecto Supabase correcto.</li>
+      <li><strong>Calidad:</strong> <code>npm run lint</code> y <code>npm run build</code>.</li>
+      <li><strong>Control de versiones:</strong> confirmar solo los archivos previstos y publicar el commit en GitHub.</li>
+      <li><strong>Despliegue:</strong> Vercel obtiene el commit, usa las variables de entorno y publica HTTPS.</li>
+      <li><strong>Prueba real:</strong> abrir cuenta cliente, pedir con teléfono vacío, verificar historial, revisar panel y estados.</li>
+    </ol>
+    <div class="diagram">
+      <svg viewBox="0 0 690 150" role="img" aria-label="Flujo de publicación desde local a GitHub, Vercel, Supabase y usuarios">
+        <defs><marker id="q" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#0b347a"/></marker></defs>
+        <g font-family="Arial" text-anchor="middle">
+          <rect x="8" y="40" width="132" height="65" rx="13" fill="#edf3fb"/><text x="74" y="68" fill="#0b347a" font-size="13" font-weight="700">PC local</text><text x="74" y="88" fill="#53657e" font-size="10">lint + build</text>
+          <rect x="183" y="40" width="132" height="65" rx="13" fill="#fff4ed"/><text x="249" y="68" fill="#0b347a" font-size="13" font-weight="700">GitHub</text><text x="249" y="88" fill="#53657e" font-size="10">main</text>
+          <rect x="358" y="40" width="132" height="65" rx="13" fill="#effaf5"/><text x="424" y="68" fill="#0b347a" font-size="13" font-weight="700">Vercel</text><text x="424" y="88" fill="#53657e" font-size="10">deploy HTTPS</text>
+          <rect x="533" y="40" width="145" height="65" rx="13" fill="#edf3fb"/><text x="605" y="68" fill="#0b347a" font-size="13" font-weight="700">Personas</text><text x="605" y="88" fill="#53657e" font-size="10">web instalada</text>
+          <path d="M140 72 H176 M315 72 H351 M490 72 H526" stroke="#0b347a" stroke-width="3" marker-end="url(#q)"/>
+          <text x="424" y="131" fill="#53657e" font-size="10">Supabase sigue como backend de cuentas y pedidos.</text>
+        </g>
+      </svg>
+    </div>
+    <h3>Checklist de aceptación</h3>
+    <ul>
+      <li>La cuenta se crea y el correo se confirma si la configuración lo requiere.</li>
+      <li>Una solicitud sin iniciar sesión se rechaza; una cuenta válida sí puede enviar pedido.</li>
+      <li>Nombre y email se asignan desde Auth; teléfono puede quedar vacío.</li>
+      <li>El perfil solo permite consultar pedidos propios.</li>
+      <li>El panel registra un impago solo para pedido entregado con evidencia; el segundo reporte del mismo pedido falla.</li>
+    </ul>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>08</span></div>
+  </section>
+
+  <section class="page">
+    <div class="brand">08 · Mantenimiento</div>
+    <h2>Cómo seguir aprendiendo y ampliar la app</h2>
+    <div class="grid">
+      <div class="card"><strong>Para cambiar una pantalla</strong><br>Busca la página en <code>app/</code>; la interfaz suele estar en su componente de <code>components/</code>.</div>
+      <div class="card"><strong>Para cambiar un dato</strong><br>Actualiza esquema/migración, tipos TypeScript y los formularios o consultas que lo usan.</div>
+      <div class="card"><strong>Para proteger una acción</strong><br>Añade política RLS o función SQL, prueba rol permitido y rol rechazado.</div>
+      <div class="card"><strong>Para publicar</strong><br>Revisa lint/build, revisa diff, sube a GitHub y comprueba el despliegue de Vercel.</div>
+    </div>
+    <h3>Funciones futuras que requieren diseño adicional</h3>
+    <ul>
+      <li>Subida real de fotos a Storage con permisos privados y políticas de acceso.</li>
+      <li>Pago en línea, reembolsos y conciliación, si se decide abandonar efectivo.</li>
+      <li>GPS en vivo y consentimiento/retención de ubicación.</li>
+      <li>Apelaciones, reglas de recuperación de reputación y proceso de revisión de disputas.</li>
+    </ul>
+    <div class="callout">Antes de añadir una función, define quién puede usarla, qué datos exige, quién puede leerlos, qué ocurre cuando falla y cómo se prueba.</div>
+    <p><strong>Proyecto:</strong> github.com/frankbuitrago3-code/chamoentregas<br><strong>Producción:</strong> chamoentregas.vercel.app</p>
+    <p class="small">Material de aprendizaje vinculado al código actual del proyecto. No incluye secretos ni contraseñas.</p>
+    <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>09</span></div>
+  </section>
+</body>
+</html>
