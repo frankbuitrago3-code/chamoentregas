@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getSafeAuthDestination } from "@/lib/auth-redirect";
 
 type AccountMode = "login" | "register";
 
@@ -18,6 +19,11 @@ export function CustomerAccount() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [returnTo] = useState(() =>
+    typeof window === "undefined"
+      ? "/perfil"
+      : getSafeAuthDestination(new URLSearchParams(window.location.search).get("next")),
+  );
 
   useEffect(() => {
     if (!client) return;
@@ -26,18 +32,18 @@ export function CustomerAccount() {
     client.auth.getSession().then(({ data, error }) => {
       if (!isMounted) return;
       if (error) setErrorMessage(error.message);
-      if (data.session) router.replace("/perfil");
+      if (data.session) router.replace(returnTo);
     });
 
     const { data } = client.auth.onAuthStateChange((_event, session) => {
-      if (isMounted && session) router.replace("/perfil");
+      if (isMounted && session) router.replace(returnTo);
     });
 
     return () => {
       isMounted = false;
       data.subscription.unsubscribe();
     };
-  }, [client, router]);
+  }, [client, returnTo, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,16 +63,16 @@ export function CustomerAccount() {
           password,
           options: {
             data: { full_name: fullName.trim() },
-            emailRedirectTo: `${window.location.origin}/auth/update-password`,
+            emailRedirectTo: `${window.location.origin}/auth/update-password?next=${encodeURIComponent(returnTo)}`,
           },
         });
         if (error) throw error;
 
         if (data.session) {
-          router.replace("/perfil");
+          router.replace(returnTo);
         } else {
           setMessage(
-            "Revisa tu correo y confirma la cuenta. Después podrás entrar y pedir entregas. El teléfono es opcional y puedes añadirlo a tu perfil.",
+            "Revisa tu correo y confirma la cuenta. Después continuarás directamente a tu solicitud. El teléfono es opcional y puedes añadirlo a tu perfil.",
           );
         }
       } else {
@@ -75,7 +81,7 @@ export function CustomerAccount() {
           password,
         });
         if (error) throw error;
-        router.replace("/perfil");
+        router.replace(returnTo);
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "No se pudo completar el acceso.");

@@ -3,6 +3,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.couriers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  email text,
   city text not null default 'Coloncito',
   phone text,
   active boolean not null default true,
@@ -11,7 +12,12 @@ create table if not exists public.couriers (
 );
 
 alter table public.couriers
-  add column if not exists auth_user_id uuid unique references auth.users(id) on delete set null;
+  add column if not exists auth_user_id uuid unique references auth.users(id) on delete set null,
+  add column if not exists email text;
+
+create unique index if not exists couriers_email_lower_uidx
+  on public.couriers (lower(email))
+  where email is not null;
 
 create table if not exists public.coverage_zones (
   id uuid primary key default gen_random_uuid(),

@@ -45,7 +45,11 @@ cp .env.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
 NEXT_PUBLIC_WHATSAPP_NUMBER=584165552233
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_SERVICE_ROLE_KEY=secreto-solo-del-servidor
 ```
+
+`SUPABASE_SERVICE_ROLE_KEY` solo se necesita para invitar y habilitar repartidores desde `/admin`. Es una credencial privilegiada: no la publiques, no la pongas en una variable `NEXT_PUBLIC_*` y no la uses en componentes del navegador.
 
 5. Inicia el proyecto en modo desarrollo:
 
@@ -101,13 +105,15 @@ Los estados de pedido usados son:
 1. Abre tu proyecto en Supabase.
 2. En SQL Editor, ejecuta completo el contenido de `supabase/schema.sql`.
 3. Ejecuta también `supabase/migrations/20261015_customer_accounts_and_reputation.sql` para añadir perfiles, cuentas de clientes, historial y reputación.
-4. Copia la URL del proyecto y la clave anónima en `.env.local`.
+4. Ejecuta `supabase/migrations/20261016_courier_invitations.sql` para habilitar los correos de repartidores.
+5. Copia la URL y la clave publicable del proyecto en `.env.local`. Añade `SUPABASE_SERVICE_ROLE_KEY` solo al entorno de servidor.
 
 El esquema y la migración crean políticas RLS diferenciadas: clientes autenticados pueden solicitar y consultar únicamente sus pedidos, y actualizar solo su nombre y teléfono; administradores operan pedidos, perfiles, incidencias y cobertura; repartidores autenticados solo ven pedidos nuevos de su ciudad y sus propias entregas. Aceptar un pedido, avanzar estados y moderar restricciones se realiza mediante funciones SQL protegidas.
 
 ### Registro y reputación de clientes
 
 - El cliente crea una cuenta con correo, contraseña y nombre. El teléfono es opcional en su perfil.
+- Desde la portada, **Pedir ahora** y **Solicitar** llevan al acceso de cliente si no hay sesión. Al iniciar sesión o confirmar el correo, continúa directamente a `/pedido`; el perfil queda como una sección independiente.
 - Una solicitud se asocia a la identidad autenticada y el backend completa el correo y nombre desde el perfil. La política de base de datos impide pedidos anónimos y solicitudes durante una pausa vigente.
 - Los clientes consultan su perfil, reputación, incidencias confirmadas e historial en `/perfil`.
 - La reputación inicia en 100/100. Solo el administrador puede registrar un impago tras revisar evidencia vinculada a un pedido entregado. Un caso confirmado descuenta 20 puntos; la base impide duplicar el reporte para el mismo pedido.
@@ -117,19 +123,15 @@ El esquema y la migración crean políticas RLS diferenciadas: clientes autentic
 
 ### Crear cuentas para el equipo
 
-1. Crea en **Authentication > Users** una cuenta para cada administrador y repartidor; no habilites el registro público.
-2. Para invitar administradores, configura **Authentication > URL Configuration** para que el enlace de invitación vuelva a `/auth/update-password` en el dominio publicado. El usuario podrá establecer su contraseña en esa página sin compartirla.
-3. Asigna el `app_metadata.role` correspondiente (`admin` o `courier`) desde un entorno seguro que use la Admin API de Supabase. `app_metadata` es de confianza; no guardes estos roles en `user_metadata` ni los cambies desde el navegador.
-4. Para cada repartidor, vincula el ID de su usuario al registro de `couriers`:
+1. No habilites el registro público de cuentas del equipo.
+2. Crea la cuenta del administrador en **Authentication > Users** y asigna `app_metadata.role = "admin"` desde un entorno seguro que use la Admin API de Supabase. Los roles de confianza nunca deben guardarse en `user_metadata` ni modificarse desde el navegador.
+3. En **Authentication > URL Configuration**, agrega como redirect URLs el dominio de producción y `http://localhost:3000/auth/update-password` para pruebas locales.
+4. Para que el administrador invite repartidores desde `/admin`, configura `SUPABASE_SERVICE_ROLE_KEY` en el servidor local y en Vercel. El valor se obtiene desde **Supabase > Project Settings > API Keys**. No lo pegues en el código, en GitHub ni en el chat.
+5. Desde **/admin > Invitar y gestionar repartidores**, introduce nombre, correo, ciudad y teléfono opcional. La API de servidor envía la invitación, asigna `app_metadata.role = "courier"` y crea el perfil de `couriers` asociado. El repartidor recibirá un enlace para establecer su contraseña y continuar a `/repartidor`.
+6. El administrador puede pausar o reactivar el acceso desde esa misma sección; un perfil pausado no puede operar pedidos.
+7. En Vercel configura `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` con `https://chamoentregas.vercel.app` y `SUPABASE_SERVICE_ROLE_KEY` como variable secreta de servidor. Nunca expongas esta última en `NEXT_PUBLIC_*`.
 
-```sql
-update public.couriers
-set auth_user_id = 'UUID-DEL-USUARIO-AUTH'
-where name = 'José' and city = 'Coloncito';
-```
-
-5. Las cuentas de administrador necesitan `app_metadata.role = "admin"`; las de repartidor `app_metadata.role = "courier"` y un registro activo vinculado.
-6. Guarda `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Vercel. Nunca expongas la clave `service_role` en variables `NEXT_PUBLIC_*` ni en el cliente.
+Si falta `SUPABASE_SERVICE_ROLE_KEY`, el panel informa que no puede enviar la invitación; no muestra un resultado de éxito falso.
 
 La app cliente no muestra un mensaje de éxito si Supabase no está configurado: informará que todavía no se pueden recibir solicitudes.
 
@@ -147,10 +149,12 @@ Esto sirve para revisar la experiencia de administración y probar los flujos si
 ```text
 app/
   page.tsx
+  pedido/page.tsx
   admin/page.tsx
   repartidor/page.tsx
 components/
   chamo-landing.tsx
+  customer-order-form.tsx
   chamo-admin.tsx
   courier-dashboard.tsx
   pwa-install-button.tsx

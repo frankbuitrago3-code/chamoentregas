@@ -70,7 +70,7 @@
         <defs><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3z" fill="#0b347a"/></marker></defs>
         <g font-family="Arial" text-anchor="middle">
           <rect x="250" y="8" width="200" height="42" rx="12" fill="#0b347a"/><text x="350" y="35" fill="white" font-size="15" font-weight="700">app/ · rutas Next.js</text>
-          <rect x="15" y="91" width="150" height="54" rx="12" fill="#edf3fb"/><text x="90" y="114" fill="#0b347a" font-size="13" font-weight="700">/</text><text x="90" y="132" fill="#53657e" font-size="11">sitio y pedido</text>
+          <rect x="15" y="91" width="150" height="54" rx="12" fill="#edf3fb"/><text x="90" y="114" fill="#0b347a" font-size="13" font-weight="700">/ · /pedido</text><text x="90" y="132" fill="#53657e" font-size="11">portada y formulario</text>
           <rect x="183" y="91" width="150" height="54" rx="12" fill="#edf3fb"/><text x="258" y="114" fill="#0b347a" font-size="13" font-weight="700">/cuenta · /perfil</text><text x="258" y="132" fill="#53657e" font-size="11">cliente</text>
           <rect x="351" y="91" width="150" height="54" rx="12" fill="#fff4ed"/><text x="426" y="114" fill="#0b347a" font-size="13" font-weight="700">/admin</text><text x="426" y="132" fill="#53657e" font-size="11">operación</text>
           <rect x="519" y="91" width="166" height="54" rx="12" fill="#fff4ed"/><text x="602" y="114" fill="#0b347a" font-size="13" font-weight="700">/repartidor</text><text x="602" y="132" fill="#53657e" font-size="11">entregas</text>
@@ -117,7 +117,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=TU-CLAVE-PUBLICABLE</pre>
       <div class="card"><strong>Operación:</strong><br><code>/admin</code></div>
       <div class="card"><strong>Repartidor:</strong><br><code>/repartidor</code></div>
     </div>
-    <div class="callout warn"><strong>Nunca subas</strong> <code>.env.local</code>, contraseñas ni la clave <code>service_role</code> a GitHub. El navegador solo recibe la clave publicable; RLS hace cumplir los permisos.</div>
+    <div class="callout warn"><strong>Nunca subas</strong> <code>.env.local</code>, contraseñas ni la clave <code>service_role</code> a GitHub. La invitación de repartidores pasa por <code>app/api/admin/couriers/route.ts</code>; valida la sesión admin y usa esa clave solo en el servidor.</div>
     <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>03</span></div>
   </section>
 
@@ -141,10 +141,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=TU-CLAVE-PUBLICABLE</pre>
     <ol>
       <li>En Supabase abre <strong>SQL Editor</strong>.</li>
       <li>Para una base nueva, ejecuta <code>supabase/schema.sql</code>.</li>
-      <li>Ejecuta la migración <code>supabase/migrations/20261015_customer_accounts_and_reputation.sql</code>. En esta app ya creada, corre esa migración una sola vez.</li>
-      <li>Comprueba que existen <code>customer_profiles</code>, <code>customer_violations</code> y las nuevas columnas de <code>orders</code>.</li>
+      <li>Ejecuta <code>supabase/migrations/20261015_customer_accounts_and_reputation.sql</code> para perfiles y reputación.</li>
+      <li>Ejecuta <code>supabase/migrations/20261016_courier_invitations.sql</code> para almacenar el correo único de cada repartidor.</li>
+      <li>Comprueba que existen <code>customer_profiles</code>, <code>customer_violations</code> y las columnas requeridas de <code>orders</code> y <code>couriers</code>.</li>
     </ol>
-    <div class="callout good">La migración crea el perfil a partir de usuarios Auth existentes y también configura un trigger para próximos registros. No insertes credenciales directamente en tablas de negocio.</div>
+    <div class="callout good">La migración crea perfiles para usuarios existentes y un trigger para nuevos registros. La migración de invitaciones añade correo único a <code>couriers</code>. No insertes credenciales directamente en tablas de negocio.</div>
     <div class="footer"><span>Cómo se hizo · ChamoEntregas</span><span>04</span></div>
   </section>
 
@@ -161,7 +162,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=TU-CLAVE-PUBLICABLE</pre>
           <path d="M101 57 V270 M349 57 V270 M597 57 V270" stroke="#b8c6d8" stroke-width="2" stroke-dasharray="5 5"/>
           <text x="220" y="86" fill="#53657e" font-size="11">correo + contraseña + nombre</text><path d="M109 97 H337" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
           <text x="470" y="126" fill="#53657e" font-size="11">Auth crea usuario; trigger crea perfil</text><path d="M357 137 H585" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
-          <text x="220" y="166" fill="#53657e" font-size="11">elige comida, paquete o mandado</text><path d="M109 177 H337" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
+          <text x="220" y="166" fill="#53657e" font-size="11">redirige al formulario /pedido</text><path d="M109 177 H337" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
           <text x="470" y="206" fill="#53657e" font-size="11">trigger asigna id, correo y nombre</text><path d="M357 217 H585" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
           <text x="220" y="246" fill="#53657e" font-size="11">consulta su historial</text><path d="M585 257 H113" stroke="#0b347a" stroke-width="2" marker-end="url(#o)"/>
         </g>
@@ -170,9 +171,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=TU-CLAVE-PUBLICABLE</pre>
     <h3>Archivos que implementan el recorrido</h3>
     <table><thead><tr><th>Archivo</th><th>Qué hace</th></tr></thead><tbody>
       <tr><td><code>components/customer-account.tsx</code></td><td>Registra e inicia sesión con Supabase Auth; pide nombre y email, el teléfono no aparece como requisito.</td></tr>
-      <tr><td><code>components/chamo-landing.tsx</code></td><td>Lee la sesión y el perfil, asocia el pedido al UUID de la cuenta y deja opcional el teléfono.</td></tr>
+      <tr><td><code>components/chamo-landing.tsx</code></td><td>Muestra la portada pública y dirige a acceso o a <code>/pedido</code>.</td></tr>
+      <tr><td><code>components/customer-order-form.tsx</code></td><td>Revisa la sesión y guarda el formulario con los campos correspondientes a comida, paquete o mandado.</td></tr>
       <tr><td><code>components/customer-profile.tsx</code></td><td>Permite editar nombre/teléfono y leer solo pedidos e incidencias propios.</td></tr>
-      <tr><td><code>set_order_customer_identity()</code></td><td>En servidor reemplaza identidad enviada por navegador con la de la sesión y rechaza cuentas pausadas.</td></tr>
+      <tr><td><code>set_order_customer_identity()</code></td><td>En la base asigna la identidad de la sesión y rechaza cuentas pausadas.</td></tr>
     </tbody></table>
     <pre>signUp({ email, password, options: { data: { full_name } } })
 orders.insert({ type, city, destination, ... })
@@ -186,7 +188,7 @@ orders.insert({ type, city, destination, ... })
     <p>RLS significa Row Level Security (seguridad por fila). Aunque el navegador tenga una clave publicable, cada consulta a la base debe cumplir reglas antes de leer o escribir.</p>
     <div class="grid">
       <div class="card"><strong>Cliente autenticado</strong><br>Puede enviar pedidos nuevos y ver los de su propio <code>customer_id</code>; actualiza solo nombre y teléfono.</div>
-      <div class="card"><strong>Administrador</strong><br>Se comprueba <code>app_metadata.role = admin</code>; gestiona pedidos y revisa clientes.</div>
+      <div class="card"><strong>Administrador</strong><br>Se comprueba <code>app_metadata.role = admin</code>; gestiona pedidos, invita repartidores y controla sus accesos.</div>
       <div class="card"><strong>Repartidor</strong><br>Ve pedidos nuevos de su ciudad y los asignados a su perfil activo.</div>
       <div class="card"><strong>Visitante anónimo</strong><br>No puede enviar pedidos: debe registrarse o entrar primero.</div>
     </div>
@@ -250,7 +252,8 @@ El admin puede limitar 3 días tras revisar el caso.</pre>
       <li><strong>Calidad:</strong> <code>npm run lint</code> y <code>npm run build</code>.</li>
       <li><strong>Control de versiones:</strong> confirmar solo los archivos previstos y publicar el commit en GitHub.</li>
       <li><strong>Despliegue:</strong> Vercel obtiene el commit, usa las variables de entorno y publica HTTPS.</li>
-      <li><strong>Prueba real:</strong> abrir cuenta cliente, pedir con teléfono vacío, verificar historial, revisar panel y estados.</li>
+      <li><strong>Prueba real:</strong> abrir cuenta cliente, comprobar que el acceso continúa directo a <code>/pedido</code>, revisar historial y estados.</li>
+      <li><strong>Equipo:</strong> probar la invitación y pausar/reactivar un repartidor solo con la clave de servidor configurada.</li>
     </ol>
     <div class="diagram">
       <svg viewBox="0 0 690 150" role="img" aria-label="Flujo de publicación desde local a GitHub, Vercel, Supabase y usuarios">

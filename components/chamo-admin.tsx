@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -24,6 +24,16 @@ type CustomerProfileRecord = {
   phone: string | null;
   reputation_score: number;
   orders_blocked_until: string | null;
+};
+
+type CourierRecord = {
+  id: string;
+  name: string;
+  email: string | null;
+  city: string;
+  phone: string | null;
+  active: boolean;
+  auth_user_id: string | null;
 };
 
 const demoCredentials = {
@@ -50,6 +60,17 @@ export function ChamoAdminDashboard() {
   const [customerActionMessage, setCustomerActionMessage] = useState("");
   const [customerActionError, setCustomerActionError] = useState("");
   const [isSavingCustomerAction, setIsSavingCustomerAction] = useState(false);
+  const [couriers, setCouriers] = useState<CourierRecord[]>([]);
+  const [courierForm, setCourierForm] = useState({
+    name: "",
+    email: "",
+    city: "Coloncito",
+    phone: "",
+  });
+  const [courierMessage, setCourierMessage] = useState("");
+  const [courierError, setCourierError] = useState("");
+  const [isInvitingCourier, setIsInvitingCourier] = useState(false);
+  const [updatingCourierId, setUpdatingCourierId] = useState("");
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "todos") return orders;
@@ -127,8 +148,24 @@ export function ChamoAdminDashboard() {
       }
     };
 
+    const loadCouriers = async () => {
+      const { data, error } = await client
+        .from("couriers")
+        .select("id,name,email,city,phone,active,auth_user_id")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("No se pudieron cargar los repartidores:", error);
+        setCourierError(`No se pudo cargar la lista de repartidores: ${error.message}`);
+        return;
+      }
+
+      setCouriers(data ?? []);
+    };
+
     loadOrders();
     loadCustomers();
+    loadCouriers();
 
     const subscription = client
       .channel("orders-realtime")
@@ -182,7 +219,6 @@ export function ChamoAdminDashboard() {
     event.preventDefault();
 
     const client = supabaseClient;
-
     if (client) {
       const { error } = await client.auth.signInWithPassword({
         email: loginForm.email,
@@ -216,6 +252,93 @@ export function ChamoAdminDashboard() {
     }
 
     setLoginError("Credenciales inválidas. Usa admin@chamoentregas.com / chamo123");
+  }
+
+  async function inviteCourier(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCourierError("");
+    setCourierMessage("");
+
+    if (!supabaseClient) {
+      setCourierError("Configura Supabase para invitar repartidores.");
+      return;
+    }
+
+    setIsInvitingCourier(true);
+    try {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+      if (!data.session) throw new Error("La sesión administrativa venció. Vuelve a iniciar sesión.");
+
+      const response = await fetch("/api/admin/couriers", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(courierForm),
+      });
+      const result = (await response.json()) as {
+        error?: string;
+        message?: string;
+        courier?: CourierRecord;
+      };
+      const invitedCourier = result.courier;
+      if (!response.ok || !invitedCourier) {
+        throw new Error(result.error ?? "No se pudo enviar la invitación.");
+      }
+
+      setCouriers((current) => [invitedCourier, ...current]);
+      setCourierForm({ name: "", email: "", city: "Coloncito", phone: "" });
+      setCourierMessage(`${result.message ?? "Invitación enviada."} ${invitedCourier.email}`);
+    } catch (error) {
+      setCourierError(error instanceof Error ? error.message : "No se pudo invitar al repartidor.");
+    } finally {
+      setIsInvitingCourier(false);
+    }
+  }
+
+  async function updateCourierAccess(courier: CourierRecord) {
+    setCourierError("");
+    setCourierMessage("");
+    if (!supabaseClient) return;
+
+    setUpdatingCourierId(courier.id);
+    try {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+      if (!data.session) throw new Error("La sesión administrativa venció. Vuelve a iniciar sesión.");
+
+      const response = await fetch("/api/admin/couriers", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: courier.id, active: !courier.active }),
+      });
+      const result = (await response.json()) as {
+        error?: string;
+        courier?: CourierRecord;
+      };
+      const updatedCourier = result.courier;
+      if (!response.ok || !updatedCourier) {
+        throw new Error(result.error ?? "No se pudo cambiar el acceso del repartidor.");
+      }
+
+      setCouriers((current) =>
+        current.map((item) => item.id === courier.id ? updatedCourier : item),
+      );
+      setCourierMessage(
+        updatedCourier.active
+          ? `Acceso habilitado para ${updatedCourier.name}.`
+          : `Acceso pausado para ${updatedCourier.name}.`,
+      );
+    } catch (error) {
+      setCourierError(error instanceof Error ? error.message : "No se pudo cambiar el acceso.");
+    } finally {
+      setUpdatingCourierId("");
+    }
   }
 
   async function changeOrderStatus(orderId: string, newStatus: OrderStatus) {
@@ -445,6 +568,107 @@ export function ChamoAdminDashboard() {
             </div>
           ))}
         </section>
+
+        {supabaseClient ? (
+          <section className="mb-8 rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#FF5A0A]">Acceso del equipo</p>
+              <h2 className="mt-1 text-2xl font-black text-[#0B347A]">Invitar y gestionar repartidores</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                El repartidor recibirá un correo para crear su contraseña. Desde aquí puedes pausar o habilitar su acceso.
+              </p>
+            </div>
+
+            <form onSubmit={inviteCourier} className="grid gap-4 rounded-2xl bg-slate-50 p-4 md:grid-cols-2">
+              <label className="block text-sm font-semibold text-slate-700">
+                Nombre
+                <input
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  value={courierForm.name}
+                  onChange={(event) => setCourierForm((current) => ({ ...current, name: event.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
+                  placeholder="Nombre del repartidor"
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Correo
+                <input
+                  type="email"
+                  required
+                  maxLength={254}
+                  value={courierForm.email}
+                  onChange={(event) => setCourierForm((current) => ({ ...current, email: event.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
+                  placeholder="repartidor@correo.com"
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Ciudad
+                <select
+                  value={courierForm.city}
+                  onChange={(event) => setCourierForm((current) => ({ ...current, city: event.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
+                >
+                  <option>Coloncito</option>
+                  <option>La Fría</option>
+                  <option>Colón</option>
+                </select>
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Teléfono (opcional)
+                <input
+                  type="tel"
+                  maxLength={40}
+                  value={courierForm.phone}
+                  onChange={(event) => setCourierForm((current) => ({ ...current, phone: event.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
+                  placeholder="Teléfono de contacto"
+                />
+              </label>
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={isInvitingCourier}
+                  className="rounded-full bg-[#FF5A0A] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isInvitingCourier ? "Enviando invitación…" : "Invitar repartidor"}
+                </button>
+              </div>
+            </form>
+
+            {courierError ? <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{courierError}</p> : null}
+            {courierMessage ? <p role="status" className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{courierMessage}</p> : null}
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {couriers.map((courier) => (
+                <div key={courier.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900">{courier.name}</div>
+                    <div className="break-all text-sm text-slate-600">{courier.email ?? "Sin correo asociado"}</div>
+                    <div className="text-xs text-slate-500">{courier.city}{courier.phone ? ` · ${courier.phone}` : ""}</div>
+                    <div className={`mt-1 text-xs font-bold ${courier.active ? "text-emerald-700" : "text-slate-500"}`}>
+                      {courier.active ? "Acceso habilitado" : "Acceso pausado"}
+                      {!courier.auth_user_id ? " · Sin cuenta vinculada" : ""}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={updatingCourierId === courier.id}
+                    onClick={() => void updateCourierAccess(courier)}
+                    className={`rounded-full px-4 py-2 text-xs font-bold disabled:opacity-60 ${courier.active ? "border border-rose-200 text-rose-700 hover:bg-rose-50" : "bg-[#0B347A] text-white hover:bg-[#092b64]"}`}
+                  >
+                    {updatingCourierId === courier.id ? "Actualizando…" : courier.active ? "Pausar acceso" : "Habilitar acceso"}
+                  </button>
+                </div>
+              ))}
+              {couriers.length === 0 ? (
+                <p className="text-sm text-slate-500">Aún no hay repartidores registrados.</p>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         {supabaseClient ? (
           <section className="mb-8 rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -699,7 +923,10 @@ export function ChamoAdminDashboard() {
                         className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 outline-none focus:border-[#0B347A]"
                       >
                         <option value="">Sin asignar</option>
-                        {demoRiders.map((rider) => (
+                        {(supabaseClient
+                          ? couriers.filter((courier) => courier.active)
+                          : demoRiders
+                        ).map((rider) => (
                           <option key={rider.id} value={rider.name}>
                             {rider.name}
                           </option>
@@ -755,15 +982,21 @@ export function ChamoAdminDashboard() {
               <h3 className="text-xl font-black text-slate-900">Repartidores</h3>
             </div>
             <div className="space-y-3">
-              {demoRiders.map((rider) => (
+              {(supabaseClient ? couriers : demoRiders).map((rider) => (
                 <div key={rider.id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2">
                   <div>
                     <div className="font-semibold text-slate-800">{rider.name}</div>
-                    <div className="text-xs text-slate-500">{rider.city}</div>
+                    <div className="text-xs text-slate-500">
+                      {rider.city}
+                      {"email" in rider && rider.email ? ` · ${rider.email}` : ""}
+                    </div>
                   </div>
                   <div className={`h-2.5 w-2.5 rounded-full ${rider.active ? "bg-emerald-500" : "bg-slate-300"}`} />
                 </div>
               ))}
+              {supabaseClient && couriers.length === 0 ? (
+                <p className="text-sm text-slate-500">Aún no hay repartidores activos.</p>
+              ) : null}
             </div>
           </div>
 

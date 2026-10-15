@@ -2,11 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  ArrowRight,
-  Bike,
   BriefcaseBusiness,
   Check,
   ChevronRight,
@@ -17,7 +15,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
-import { requestOptions, type RequestType } from "@/lib/demo-data";
+import type { RequestType } from "@/lib/demo-data";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 
 const services = [
@@ -67,73 +65,18 @@ const faq = [
 ];
 
 export function ChamoLandingPage() {
-  const [requestType, setRequestType] = useState<RequestType>("comida");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [isOrderBlocked, setIsOrderBlocked] = useState(false);
-  const [formState, setFormState] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    city: "Coloncito",
-    restaurant: "",
-    item: "",
-    notes: "",
-    packageName: "",
-    packageSize: "",
-    photoName: "",
-  });
-
-  const requestTitle = useMemo(
-    () => requestOptions[requestType].title,
-    [requestType],
-  );
 
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
 
     let isMounted = true;
-    const loadCustomer = async (user: User | null) => {
-      if (!isMounted) return;
-      setCurrentUser(user);
-      setCustomerEmail(user?.email ?? "");
-      if (!user) {
-        setIsOrderBlocked(false);
-        return;
-      }
-
-      const { data, error } = await client
-        .from("customer_profiles")
-        .select("full_name,phone,orders_blocked_until")
-        .eq("id", user.id)
-        .single();
-      if (!isMounted) return;
-      if (error) {
-        setErrorMessage(`No se pudo cargar tu perfil: ${error.message}`);
-        return;
-      }
-      setFormState((current) => ({
-        ...current,
-        name: data.full_name,
-        phone: data.phone ?? "",
-      }));
-      setIsOrderBlocked(
-        Boolean(data.orders_blocked_until && new Date(data.orders_blocked_until) > new Date()),
-      );
-    };
-
-    client.auth.getSession().then(({ data, error }) => {
-      if (error && isMounted) setErrorMessage(`No se pudo verificar tu cuenta: ${error.message}`);
-      void loadCustomer(data.session?.user ?? null);
+    client.auth.getSession().then(({ data }) => {
+      if (isMounted) setCurrentUser(data.session?.user ?? null);
     });
     const { data } = client.auth.onAuthStateChange((_event, session) => {
-      window.setTimeout(() => {
-        void loadCustomer(session?.user ?? null);
-      }, 0);
+      if (isMounted) setCurrentUser(session?.user ?? null);
     });
 
     return () => {
@@ -142,77 +85,9 @@ export function ChamoLandingPage() {
     };
   }, []);
 
-  function changeField(field: keyof typeof formState, value: string) {
-    setFormState((current) => ({ ...current, [field]: value }));
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setSuccessMessage("");
-    setErrorMessage("");
-
-    if (!currentUser) {
-      setErrorMessage("Crea una cuenta o inicia sesión antes de enviar tu solicitud.");
-      setIsSubmitting(false);
-      return;
-    }
-    if (isOrderBlocked) {
-      setErrorMessage("Tu cuenta tiene temporalmente pausadas las nuevas solicitudes. Contacta a soporte.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const payload = {
-      customer_id: currentUser.id,
-      customer_email: customerEmail,
-      customer_name: formState.name,
-      customer_phone: formState.phone.trim() || null,
-      city: formState.city,
-      type: requestType,
-      status: "nuevos",
-      pickup_location: requestType === "comida" ? formState.restaurant : formState.address,
-      destination: formState.address,
-      item_details:
-        requestType === "comida"
-          ? formState.item || formState.notes
-          : requestType === "paquete"
-            ? `${formState.packageName} • ${formState.packageSize}`
-            : formState.item,
-      notes: formState.notes,
-      photo_url: formState.photoName || null,
-    };
-
-    try {
-      const client = getSupabaseClient();
-      if (!client) {
-        throw new Error(
-          "Las solicitudes todavía no están habilitadas. Intenta más tarde o contáctanos por WhatsApp.",
-        );
-      }
-
-      const { error } = await client.from("orders").insert(payload);
-      if (error) throw error;
-
-      setSuccessMessage("¡Listo, chamo! Tu solicitud fue recibida.");
-      setFormState({
-        name: "",
-        phone: "",
-        address: "",
-        city: "Coloncito",
-        restaurant: "",
-        item: "",
-        notes: "",
-        packageName: "",
-        packageSize: "",
-        photoName: "",
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo enviar la solicitud.";
-      setErrorMessage(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+  function orderHref(type?: RequestType) {
+    const orderPath = `/pedido${type ? `?tipo=${type}` : ""}`;
+    return currentUser ? orderPath : `/cuenta?next=${encodeURIComponent(orderPath)}`;
   }
 
   const whatsAppNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "584165552233";
@@ -242,12 +117,12 @@ export function ChamoLandingPage() {
               >
                 {currentUser ? "Mi cuenta" : "Ingresar"}
               </Link>
-              <a
-                href="#solicitud-rapida"
+              <Link
+                href={orderHref()}
                 className="rounded-full bg-[#0B347A] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:translate-y-[-1px] hover:bg-[#0a2e6d]"
               >
                 Pedir ahora
-              </a>
+              </Link>
             </div>
         </nav>
       </header>
@@ -269,12 +144,12 @@ export function ChamoLandingPage() {
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <a
-                href="#solicitud-rapida"
+              <Link
+                href={orderHref()}
                 className="inline-flex items-center justify-center rounded-full bg-[#FF5A0A] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-200 transition hover:translate-y-[-1px] hover:bg-[#e75408]"
               >
                 Solicitar una entrega
-              </a>
+              </Link>
               <a
                 href="#servicios"
                 className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3.5 text-base font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
@@ -321,13 +196,12 @@ export function ChamoLandingPage() {
                 </div>
                 <h3 className="text-2xl font-black text-slate-900">{title}</h3>
                 <p className="mt-3 text-base text-slate-600">{description}</p>
-                <a
-                  href="#solicitud-rapida"
-                  onClick={() => setRequestType(key)}
+                <Link
+                  href={orderHref(key)}
                   className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#FF5A0A] px-4 py-2 text-sm font-bold text-white"
                 >
                   Solicitar <ChevronRight className="h-4 w-4" />
-                </a>
+                </Link>
               </article>
             ))}
           </div>
@@ -400,12 +274,12 @@ export function ChamoLandingPage() {
                     <MessageCircle className="h-5 w-5" />
                     WhatsApp
                   </a>
-                  <a
-                    href="#solicitud-rapida"
+                  <Link
+                    href={orderHref()}
                     className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700"
                   >
                     Solicitar ahora
-                  </a>
+                  </Link>
                 </div>
 
                 <div className="mt-8 rounded-[24px] bg-slate-50 p-4">
@@ -433,210 +307,6 @@ export function ChamoLandingPage() {
           </div>
         </section>
 
-        <section id="solicitud-rapida" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
-          <div className="grid gap-6 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="flex flex-col justify-center rounded-[28px] bg-[#0B347A] p-6 text-white">
-              <p className="text-sm font-bold uppercase tracking-[0.22em] text-blue-100">Solicitud rápida</p>
-              <h2 className="mt-3 text-3xl font-black">Pide tu entrega en segundos</h2>
-              <p className="mt-3 text-blue-100">
-                {currentUser
-                  ? `Pedido asociado a ${customerEmail}. Tu teléfono es opcional en el perfil.`
-                  : "Para enviar una solicitud, crea tu cuenta con correo y contraseña. No necesitas teléfono."}
-              </p>
-              {!currentUser ? (
-                <Link href="/cuenta" className="mt-5 inline-flex w-fit items-center rounded-full bg-[#FF5A0A] px-5 py-3 font-bold text-white">
-                  Crear cuenta o ingresar
-                </Link>
-              ) : null}
-              <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white/10 p-3">
-                <Bike className="h-6 w-6 text-[#FF5A0A]" />
-                <span className="font-semibold">Atención local en Coloncito</span>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5 p-1">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Tipo de servicio</label>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {(Object.keys(requestOptions) as RequestType[]).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setRequestType(type)}
-                      className={`rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${
-                        requestType === type
-                          ? "border-[#0B347A] bg-[#0B347A] text-white shadow-lg shadow-blue-100"
-                          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
-                      }`}
-                    >
-                      {requestOptions[type].title}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Nombre del perfil</span>
-                  <input
-                    value={formState.name}
-                    readOnly
-                    required
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    placeholder="Completa tu perfil"
-                  />
-                  <Link href="/perfil" className="mt-1 inline-block text-xs font-semibold text-[#0B347A]">Editar datos del perfil</Link>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Teléfono (opcional)</span>
-                  <input
-                    value={formState.phone}
-                    onChange={(event) => changeField("phone", event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    placeholder="Puedes dejarlo vacío"
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Ciudad</span>
-                  <select
-                    value={formState.city}
-                    onChange={(event) => changeField("city", event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                  >
-                    <option>Coloncito</option>
-                    <option>La Fría</option>
-                    <option>Colón</option>
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Dirección</span>
-                  <input
-                    value={formState.address}
-                    onChange={(event) => changeField("address", event.target.value)}
-                    required
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    placeholder="Calle principal"
-                  />
-                </label>
-              </div>
-
-              {requestType === "comida" ? (
-                <>
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-semibold text-slate-700">Restaurante</span>
-                    <input
-                      value={formState.restaurant}
-                      onChange={(event) => changeField("restaurant", event.target.value)}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                      placeholder="Nombre del restaurante"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-semibold text-slate-700">Pedido</span>
-                    <textarea
-                      value={formState.item}
-                      onChange={(event) => changeField("item", event.target.value)}
-                      rows={3}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                      placeholder="Ej: 2 arepas rellenas y una hamburguesa"
-                    />
-                  </label>
-                </>
-              ) : null}
-
-              {requestType === "paquete" ? (
-                <>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-semibold text-slate-700">Nombre del paquete</span>
-                      <input
-                        value={formState.packageName}
-                        onChange={(event) => changeField("packageName", event.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                        placeholder="Caja, sobre, mochila"
-                      />
-                    </label>
-
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-semibold text-slate-700">Tamaño</span>
-                      <select
-                        value={formState.packageSize}
-                        onChange={(event) => changeField("packageSize", event.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                      >
-                        <option value="">Selecciona</option>
-                        <option value="pequeño">Pequeño</option>
-                        <option value="mediano">Mediano</option>
-                        <option value="grande">Grande</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-semibold text-slate-700">Foto opcional</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => changeField("photoName", event.target.files?.[0]?.name ?? "")}
-                      className="w-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    />
-                  </label>
-                </>
-              ) : null}
-
-              {requestType === "mandado" ? (
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Qué necesitas</span>
-                  <textarea
-                    value={formState.item}
-                    onChange={(event) => changeField("item", event.target.value)}
-                    rows={3}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                    placeholder="Ej: 1 litro de leche y un paquete de café"
-                  />
-                </label>
-              ) : null}
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Notas</span>
-                <textarea
-                  value={formState.notes}
-                  onChange={(event) => changeField("notes", event.target.value)}
-                  rows={3}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-[#0B347A] focus:ring-2 focus:ring-[#0B347A]/15"
-                  placeholder="Detalle adicional"
-                />
-              </label>
-
-              {errorMessage ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {errorMessage}
-                </div>
-              ) : null}
-
-              {successMessage ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
-                  {successMessage}
-                </div>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={isSubmitting || !currentUser || isOrderBlocked}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#FF5A0A] px-5 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-200 transition hover:translate-y-[-1px] hover:bg-[#e75408] disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmitting ? "Enviando..." : `Solicitar ${requestTitle}`}
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-slate-200 bg-white px-4 py-6">

@@ -152,7 +152,7 @@ export function CustomerProfile() {
             <span className="text-xl font-black text-[#0B347A]">Mi cuenta</span>
           </Link>
           <div className="flex gap-2">
-            <Link href="/#solicitud-rapida" className="rounded-full bg-[#0B347A] px-4 py-2.5 text-sm font-bold text-white">Pedir entrega</Link>
+            <Link href="/pedido" className="rounded-full bg-[#0B347A] px-4 py-2.5 text-sm font-bold text-white">Pedir entrega</Link>
             <button type="button" onClick={() => void handleSignOut()} className="rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700">Salir</button>
           </div>
         </header>

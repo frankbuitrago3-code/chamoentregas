@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getSafeAuthDestination } from "@/lib/auth-redirect";
+
+function getReturnTo() {
+  return getSafeAuthDestination(
+    new URLSearchParams(window.location.search).get("next"),
+    "/admin",
+  );
+}
 
 export function SetPasswordForm() {
   const client = getSupabaseClient();
@@ -34,7 +42,7 @@ export function SetPasswordForm() {
         setHasSession(true);
         setIsSettingPassword(true);
       } else if (session && event === "SIGNED_IN") {
-        window.location.replace("/perfil");
+        window.location.replace(getReturnTo());
       } else {
         setHasSession(Boolean(session));
       }
@@ -49,7 +57,7 @@ export function SetPasswordForm() {
         setHasSession(true);
         setIsSettingPassword(true);
       } else if (sessionData.session) {
-        window.location.replace("/perfil");
+        window.location.replace(getReturnTo());
       } else {
         setHasSession(false);
       }
@@ -114,13 +122,13 @@ export function SetPasswordForm() {
         ) : isComplete ? (
           <>
             <p className="mt-4 text-sm text-slate-600">
-              Tu contraseña quedó guardada. Ya puedes entrar al panel administrativo.
+              Tu contraseña quedó guardada. Ya puedes entrar a tu espacio en ChamoEntregas.
             </p>
             <Link
-              href="/admin"
+              href={getReturnTo()}
               className="mt-6 block rounded-2xl bg-[#FF5A0A] px-4 py-3 text-center font-semibold text-white transition hover:brightness-105"
             >
-              Ir al panel
+              Continuar
             </Link>
           </>
         ) : !hasSession ? (
