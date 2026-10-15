@@ -23,12 +23,13 @@ const demoCredentials = {
 };
 
 export function ChamoAdminDashboard() {
+  const supabaseClient = getSupabaseClient();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginError, setLoginError] = useState("");
-  const [loginForm, setLoginForm] = useState({
-    email: demoCredentials.email,
-    password: demoCredentials.password,
-  });
+  const [loginForm, setLoginForm] = useState(() => ({
+    email: supabaseClient ? "" : demoCredentials.email,
+    password: supabaseClient ? "" : demoCredentials.password,
+  }));
   const [orders, setOrders] = useState<Order[]>(demoOrders);
   const [activeFilter, setActiveFilter] = useState<OrderStatus | "todos">("todos");
   const [selectedOrderId, setSelectedOrderId] = useState(demoOrders[0]?.id ?? "");
@@ -44,7 +45,7 @@ export function ChamoAdminDashboard() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    const client = getSupabaseClient();
+    const client = supabaseClient;
     if (!client) return;
 
     const loadOrders = async () => {
@@ -107,7 +108,7 @@ export function ChamoAdminDashboard() {
     return () => {
       void client.removeChannel(subscription);
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, supabaseClient]);
 
   const stats = [
     {
@@ -139,7 +140,7 @@ export function ChamoAdminDashboard() {
   async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const client = getSupabaseClient();
+    const client = supabaseClient;
 
     if (client) {
       const { error } = await client.auth.signInWithPassword({
@@ -284,7 +285,9 @@ export function ChamoAdminDashboard() {
             </button>
 
             <p className="text-xs text-slate-500">
-              Demo local: admin@chamoentregas.com / chamo123
+              {supabaseClient
+                ? "Acceso solo para cuentas autorizadas del equipo."
+                : `Demo local: ${demoCredentials.email} / ${demoCredentials.password}`}
             </p>
           </form>
         </div>

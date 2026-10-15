@@ -141,7 +141,9 @@ export function CourierDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [loginForm, setLoginForm] = useState(demoCredentials);
+  const [loginForm, setLoginForm] = useState(() =>
+    supabase ? { email: "", password: "" } : demoCredentials,
+  );
   const [loginError, setLoginError] = useState("");
   const [activeTab, setActiveTab] = useState<"disponibles" | "mis-entregas">(
     "disponibles",
