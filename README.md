@@ -106,8 +106,9 @@ El esquema crea políticas RLS diferenciadas: los visitantes pueden insertar sol
 ### Crear cuentas para el equipo
 
 1. Crea en **Authentication > Users** una cuenta para cada administrador y repartidor; no habilites el registro público.
-2. Asigna el `app_metadata.role` correspondiente (`admin` o `courier`) desde un entorno seguro que use la Admin API de Supabase. `app_metadata` es de confianza; no guardes estos roles en `user_metadata` ni los cambies desde el navegador.
-3. Para cada repartidor, vincula el ID de su usuario al registro de `couriers`:
+2. Para invitar administradores, configura **Authentication > URL Configuration** para que el enlace de invitación vuelva a `/auth/update-password` en el dominio publicado. El usuario podrá establecer su contraseña en esa página sin compartirla.
+3. Asigna el `app_metadata.role` correspondiente (`admin` o `courier`) desde un entorno seguro que use la Admin API de Supabase. `app_metadata` es de confianza; no guardes estos roles en `user_metadata` ni los cambies desde el navegador.
+4. Para cada repartidor, vincula el ID de su usuario al registro de `couriers`:
 
 ```sql
 update public.couriers
@@ -115,8 +116,8 @@ set auth_user_id = 'UUID-DEL-USUARIO-AUTH'
 where name = 'José' and city = 'Coloncito';
 ```
 
-4. Las cuentas de administrador necesitan `app_metadata.role = "admin"`; las de repartidor `app_metadata.role = "courier"` y un registro activo vinculado.
-5. Guarda `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Vercel. Nunca expongas la clave `service_role` en variables `NEXT_PUBLIC_*` ni en el cliente.
+5. Las cuentas de administrador necesitan `app_metadata.role = "admin"`; las de repartidor `app_metadata.role = "courier"` y un registro activo vinculado.
+6. Guarda `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Vercel. Nunca expongas la clave `service_role` en variables `NEXT_PUBLIC_*` ni en el cliente.
 
 La app cliente no muestra un mensaje de éxito si Supabase no está configurado: informará que todavía no se pueden recibir solicitudes.
 
